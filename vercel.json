@@ -6,6 +6,17 @@
   "cleanUrls": true,
   "redirects": [
     {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "shred-delta\\.vercel\\.app"
+        }
+      ],
+      "destination": "https://shredrgpd.fr/",
+      "permanent": true
+    },
+    {
       "source": "/:path*",
       "has": [
         {
