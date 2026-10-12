@@ -1,7 +1,13 @@
 name: Mise à jour de la liste des fuites
 
-# Redéploie le site chaque jour pour retélécharger le catalogue public de
-# Have I Been Pwned (scripts/fetch-breaches.mjs, lancé par prebuild).
+# Chaque jour :
+# 1. images : crée l'image de partage des nouvelles fuites françaises
+#    (scripts/og-images.mjs --missing, les images existantes ne bougent pas) ;
+# 2. commit : les ajoute à public/og/ sur main, s'il y en a ;
+# 3. redeploy : redéploie le site pour retélécharger le catalogue public de
+#    Have I Been Pwned (scripts/fetch-breaches.mjs, lancé par prebuild), même
+#    si les étapes 1 ou 2 échouent.
+# Le droit d'écriture est réservé à l'étape 2, qui n'exécute aucune dépendance npm.
 # Nécessite le secret VERCEL_DEPLOY_HOOK : l'URL d'un « Deploy Hook » Vercel
 # sur la branche main (Vercel > Settings > Git > Deploy Hooks).
 
@@ -12,9 +18,84 @@ on:
 
 permissions: {}
 
+concurrency:
+  group: refresh-breaches
+  cancel-in-progress: false
+
 jobs:
-  redeploy:
+  images:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Télécharger le catalogue HIBP
+        run: node scripts/fetch-breaches.mjs
+      - name: Créer les images manquantes
+        run: |
+          CHROMIUM_PATH="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          if [ -z "$CHROMIUM_PATH" ]; then
+            echo "::error::Chromium introuvable sur le runner."
+            exit 1
+          fi
+          CHROMIUM_PATH="$CHROMIUM_PATH" node scripts/og-images.mjs --missing
+      - name: Repérer les changements
+        id: diff
+        run: |
+          git add -N public/og
+          if git diff --quiet -- public/og; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            git diff --stat -- public/og
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.diff.outputs.changed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: og
+          path: public/og/
+          retention-days: 3
+
+  commit:
+    needs: images
+    if: needs.images.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/download-artifact@v4
+        with:
+          name: og
+          path: public/og/
+      - name: Pousser les nouvelles images sur main
+        run: |
+          git add public/og
+          if git diff --cached --quiet; then
+            echo "Rien de nouveau."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Images de partage des nouvelles fuites" -m "$(git diff --cached --name-only --diff-filter=A -- 'public/og/*.jpg' | xargs -rn1 basename | sed 's/\.jpg$//' | paste -sd ' ')"
+          git push origin HEAD:main
+
+  redeploy:
+    needs: [images, commit]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions: {}
     steps:
       - name: Déclencher le déploiement Vercel
         env:

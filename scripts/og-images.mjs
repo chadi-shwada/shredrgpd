@@ -4,15 +4,19 @@
  * n'acceptent que des images matricielles : on rend une page HTML avec
  * Chromium (Playwright) puis on la capture.
  *
- * À lancer à la main, après un build qui a téléchargé le catalogue :
- *   CHROMIUM_PATH=/chemin/vers/chrome node scripts/og-images.mjs
+ * Après un build qui a téléchargé le catalogue :
+ *   CHROMIUM_PATH=/chemin/vers/chrome node scripts/og-images.mjs            (toutes)
+ *   CHROMIUM_PATH=/chemin/vers/chrome node scripts/og-images.mjs --missing  (manquantes)
+ * --missing garde les images existantes à l'octet près : c'est le mode du
+ * workflow quotidien (.github/workflows/refresh-breaches.yml), dont le
+ * Chromium diffère de celui de l'auteur.
  * Les fuites sans image gardent public/og.png (vite.config.ts vérifie).
  * Écrit aussi public/og/marks.json (position du médaillon) : au build,
  * scripts/og-logos.mjs y colle le logo de l'entreprise s'il est disponible.
  * Métadonnées publiques du catalogue HIBP seulement ; aucune personne.
  */
 
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
 import { chromium } from 'playwright-core';
@@ -20,6 +24,8 @@ import { chromium } from 'playwright-core';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const out = `${root}public/og`;
 mkdirSync(out, { recursive: true });
+const missingOnly = process.argv.includes('--missing');
+const marksFile = `${out}/marks.json`;
 
 // Charge la logique du site (TypeScript) via Vite, sans la dupliquer.
 const vite = await createServer({ root, server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' });
@@ -87,12 +93,20 @@ h1.is-long{font-size:60px}
 </body></html>`;
 }
 
+// Position du médaillon dans chaque image : scripts/og-logos.mjs y colle le logo au build.
+const marks = missingOnly && existsSync(marksFile) ? JSON.parse(readFileSync(marksFile, 'utf8')) : {};
+const todo = [...breachSlugs(pageBreaches(catalog.breaches))].filter(
+  ([slug]) => !missingOnly || !(marks[slug] && existsSync(`${out}/${slug}.jpg`)),
+);
+if (todo.length === 0) {
+  console.log('[og-images] aucune image manquante.');
+  process.exit(0);
+}
+
 const browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
 const tab = await browser.newPage({ viewport: { width: 1200, height: 630 } });
 let n = 0;
-// Position du médaillon dans chaque image : scripts/og-logos.mjs y colle le logo au build.
-const marks = {};
-for (const [slug, breach] of breachSlugs(pageBreaches(catalog.breaches))) {
+for (const [slug, breach] of todo) {
   await tab.setContent(page(breach, slug), { waitUntil: 'load' });
   await tab.evaluate(() => document.fonts.ready);
   writeFileSync(`${out}/${slug}.jpg`, await tab.screenshot({ type: 'jpeg', quality: 86 }));
@@ -106,6 +120,8 @@ for (const [slug, breach] of breachSlugs(pageBreaches(catalog.breaches))) {
   };
   n++;
 }
-writeFileSync(`${out}/marks.json`, JSON.stringify(marks, null, 2) + '\n');
+writeFileSync(marksFile, JSON.stringify(marks, null, 2) + '\n');
 await browser.close();
-console.log(`[og-images] ${n} images dans public/og/ (catalogue du ${catalog.fetchedOn ?? 'inconnu'}).`);
+console.log(
+  `[og-images] ${n} image(s) dans public/og/ (catalogue du ${catalog.fetchedOn ?? 'inconnu'}) : ${todo.map(([s]) => s).join(', ')}.`,
+);
