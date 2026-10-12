@@ -79,7 +79,7 @@ Non vérifié : lecteurs d'écran réels, appareils Android physiques.
 
 À faire :
 - Images d'aperçu des pages de fuite : générées le 6 octobre 2026 (27 fuites) ; les fuites ajoutées ensuite gardent `og.png` tant que `scripts/og-images.mjs` n'est pas relancé.
-- Référencement : Google Search Console validée le 6 octobre 2026 (propriété Domaine, TXT chez Hostinger) ; déclarer le sitemap et demander l'indexation, puis Bing Webmaster Tools (import depuis Search Console).
+- Référencement : Google Search Console validée le 6 octobre 2026 (propriété Domaine, TXT chez Hostinger) ; sitemap déclaré le 12 octobre 2026 (adresse complète `https://shredrgpd.fr/sitemap.xml`, exigée pour une propriété Domaine) ; « Page avec redirection » est normal (http, www, `.html`, `shred-delta`), ne pas « valider la correction ». Reste : Bing Webmaster Tools (import depuis Search Console).
 - Faire relire les lettres par un juriste. Leur structure suit le modèle CNIL (art. 17.1, 12.3, 19), mais le texte complet du modèle n'a pas pu être consulté depuis l'environnement de développement.
 - Test d'e-mail intégré via l'API HIBP : écarté (envoie l'e-mail à un tiers, clé payante).
 - Compléter `src/data/contacts.ts` (contacts DPO des fuites françaises) depuis les pages officielles, avec source et date : Deezer et Cultura en attente, puis les autres fuites françaises.
