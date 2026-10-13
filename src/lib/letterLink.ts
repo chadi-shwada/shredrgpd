@@ -15,11 +15,20 @@ export function breachLetterQuery(breach: Breach, kind: InitialKind): Record<str
     site: breach.title,
     'date-fuite': breach.date,
   };
-  // Le nom HIBP n'apporte rien s'il répète le titre.
-  if (breach.name.toLowerCase() !== breach.title.toLowerCase()) query.fuite = breach.name;
+  const name = hibpName(breach);
+  if (name) query.fuite = name;
   if (categories.length > 0) query.donnees = categories.join(',');
   if (others.length > 0) query.autres = others.join(', ');
   return query;
+}
+
+/**
+ * Nom HIBP à citer dans la lettre : rien s'il répète le titre, ni pour une fiche manuelle,
+ * dont le nom n'est connu que de ShredRGPD.
+ */
+function hibpName(breach: Breach): string | undefined {
+  if (breach.manual) return undefined;
+  return breach.name.toLowerCase() !== breach.title.toLowerCase() ? breach.name : undefined;
 }
 
 /** Lit la liste « email,motDePasse » en ignorant les valeurs inconnues. */
@@ -50,7 +59,7 @@ export function breachLetterInput(
     fullName: identity.fullName,
     email: identity.email,
     siteName: breach.title,
-    breachName: breach.name.toLowerCase() !== breach.title.toLowerCase() ? breach.name : undefined,
+    breachName: hibpName(breach),
     breachDate: breach.date,
     dataCategories: categories,
     otherData: others.join(', '),

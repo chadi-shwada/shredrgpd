@@ -28,6 +28,13 @@ export interface Breach {
   malware: boolean;
   /** Fuite française selon l'heuristique du build (scripts/french.mjs). */
   french: boolean;
+  /**
+   * Fiche ajoutée à la main, absente de HIBP (src/data/manualBreaches.ts) : pas de fiche HIBP,
+   * addedDate est la date où la fuite a été rendue publique.
+   */
+  manual?: boolean;
+  /** Ce que compte pwnCount : des comptes (HIBP, par défaut) ou des personnes. */
+  countUnit?: 'comptes' | 'personnes';
 }
 
 export interface BreachCatalog {
@@ -296,6 +303,26 @@ export function mapDataClasses(dataClasses: string[]): { categories: DataCategor
     }
   }
   return { categories, others };
+}
+
+/** « comptes » (HIBP) ou « personnes » (fiche manuelle dont la source compte des personnes). */
+export function countUnit(breach: Pick<Breach, 'countUnit'>): 'comptes' | 'personnes' {
+  return breach.countUnit ?? 'comptes';
+}
+
+/** Écart au-delà duquel une fiche manuelle et une fuite HIBP du même domaine sont deux fuites distinctes. */
+const SAME_BREACH_DAYS = 120;
+
+/**
+ * Ajoute les fiches manuelles aux fuites HIBP, sauf celles que HIBP a fini par publier
+ * (même domaine, dates à moins de 120 jours) : la fiche HIBP prend alors le relais.
+ */
+export function withManualBreaches(breaches: Breach[], manual: Breach[]): Breach[] {
+  const days = (a: IsoDate, b: IsoDate) => Math.abs(Date.parse(a) - Date.parse(b)) / 86_400_000;
+  const extra = manual.filter(
+    (m) => !breaches.some((b) => b.domain === m.domain && days(b.date, m.date) <= SAME_BREACH_DAYS),
+  );
+  return extra.length > 0 ? [...breaches, ...extra] : breaches;
 }
 
 /** Adresse de la fiche publique d'une fuite sur Have I Been Pwned. */

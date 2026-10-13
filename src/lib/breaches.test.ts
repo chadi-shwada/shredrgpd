@@ -7,6 +7,7 @@ import {
   newFrenchBreachesSince,
   parseCatalog,
   searchBreaches,
+  withManualBreaches,
 } from './breaches';
 
 const RAW = {
@@ -184,5 +185,32 @@ describe('dataClassLabel, couverture', () => {
     for (const dc of ['Places of birth', 'Latitude and longitude pairs', 'Credit card CVV', 'Historical passwords']) {
       expect(dataClassLabel(dc)).not.toBe(dc);
     }
+  });
+});
+
+describe('withManualBreaches', () => {
+  const hibp = parseCatalog(RAW).breaches;
+  const manual = (date: string, domain = 'exemple.test') => ({
+    ...hibp[0]!,
+    name: `M${date}`,
+    date,
+    domain,
+    manual: true,
+  });
+
+  it('ajoute une fiche manuelle absente de HIBP', () => {
+    expect(withManualBreaches(hibp, [manual('2026-07-02', 'autre.test')]).map((b) => b.name)).toEqual([
+      'Exemple',
+      'Autre',
+      'M2026-07-02',
+    ]);
+  });
+
+  it('s’efface quand HIBP publie la même fuite (même domaine, dates proches)', () => {
+    expect(withManualBreaches(hibp, [manual('2024-05-15')])).toBe(hibp);
+  });
+
+  it('garde une autre fuite du même domaine, éloignée dans le temps', () => {
+    expect(withManualBreaches(hibp, [manual('2026-07-02')])).toHaveLength(3);
   });
 });

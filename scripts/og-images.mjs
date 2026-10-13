@@ -30,7 +30,9 @@ const marksFile = `${out}/marks.json`;
 // Charge la logique du site (TypeScript) via Vite, sans la dupliquer.
 const vite = await createServer({ root, server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' });
 const { breachSlugs, pageBreaches } = await vite.ssrLoadModule('/src/lib/breachPages.ts');
-const { parseCatalog, dataClassLabel, formatCount } = await vite.ssrLoadModule('/src/lib/breaches.ts');
+const { parseCatalog, dataClassLabel, formatCount, countUnit, withManualBreaches } =
+  await vite.ssrLoadModule('/src/lib/breaches.ts');
+const { MANUAL_BREACHES } = await vite.ssrLoadModule('/src/data/manualBreaches.ts');
 const { breachRisk, RISK_LABELS } = await vite.ssrLoadModule('/src/lib/risk.ts');
 const { formatLongFr } = await vite.ssrLoadModule('/src/lib/dates.ts');
 const { SITE_URL } = await vite.ssrLoadModule('/src/config.ts');
@@ -57,7 +59,10 @@ function page(breach, slug) {
   const h = hue(breach.title);
   const chips = breach.dataClasses.slice(0, 5).map((dc) => `<span class="chip">${esc(dataClassLabel(dc))}</span>`);
   if (breach.dataClasses.length > 5) chips.push(`<span class="chip">+${breach.dataClasses.length - 5}</span>`);
-  const facts = [formatLongFr(breach.date), breach.pwnCount > 0 ? `${formatCount(breach.pwnCount)} comptes` : null]
+  const facts = [
+    formatLongFr(breach.date),
+    breach.pwnCount > 0 ? `${formatCount(breach.pwnCount)} ${countUnit(breach)}` : null,
+  ]
     .filter(Boolean)
     .join(' · ');
   const title = breach.title.length > 22 ? 'is-long' : '';
@@ -95,7 +100,8 @@ h1.is-long{font-size:60px}
 
 // Position du médaillon dans chaque image : scripts/og-logos.mjs y colle le logo au build.
 const marks = missingOnly && existsSync(marksFile) ? JSON.parse(readFileSync(marksFile, 'utf8')) : {};
-const todo = [...breachSlugs(pageBreaches(catalog.breaches))].filter(
+// Fuites ajoutées à la main (src/data/manualBreaches.ts) comprises : elles ont aussi leur page.
+const todo = [...breachSlugs(pageBreaches(withManualBreaches(catalog.breaches, MANUAL_BREACHES)))].filter(
   ([slug]) => !missingOnly || !(marks[slug] && existsSync(`${out}/${slug}.jpg`)),
 );
 if (todo.length === 0) {

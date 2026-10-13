@@ -1,10 +1,20 @@
 /**
  * Pages publiques par fuite française (/fuite/free…), résumé du catalogue pour
  * l'accueil et flux Atom des fuites françaises. Tout est tiré du catalogue
- * public HIBP (métadonnées seulement) au build : aucune requête à l'exécution.
+ * public HIBP (métadonnées seulement) au build, plus quelques fuites absentes de
+ * HIBP ajoutées à la main (src/data/manualBreaches.ts, withManualBreaches) :
+ * aucune requête à l'exécution.
  */
 
-import { dataClassLabel, formatCount, recentFrenchBreaches, type Breach, type BreachCatalog } from './breaches';
+import {
+  countUnit,
+  dataClassLabel,
+  formatCount,
+  recentFrenchBreaches,
+  withManualBreaches,
+  type Breach,
+  type BreachCatalog,
+} from './breaches';
 import { formatLongFr, type IsoDate } from './dates';
 import { breachRisk, type RiskLevel } from './risk';
 import { slugify } from './slug';
@@ -73,13 +83,13 @@ export interface BreachPageMeta {
   path: string;
   title: string;
   description: string;
-  /** Date d'ajout de la fuite au catalogue HIBP, pour le sitemap. */
+  /** Date d'ajout de la fuite au catalogue HIBP (fiche manuelle : date où elle a été rendue publique), pour le sitemap. */
   lastmod?: string;
 }
 
 export function breachPageMeta(breach: Breach, slug: string): BreachPageMeta {
   const types = breach.dataClasses.slice(0, 4).map(dataClassLabel).join(', ');
-  const accounts = breach.pwnCount > 0 ? `${count(breach.pwnCount)} comptes, ` : '';
+  const accounts = breach.pwnCount > 0 ? `${count(breach.pwnCount)} ${countUnit(breach)}, ` : '';
   return {
     path: BREACH_PATH_PREFIX + slug,
     title: `Fuite ${breach.title} (${formatMonthFr(breach.date)}) : que faire ? · ShredRGPD`,
@@ -109,27 +119,35 @@ export interface CatalogSummary {
     path: string;
     date: IsoDate;
     pwnCount: number;
+    countUnit: 'comptes' | 'personnes';
     dataClasses: string[];
     risk: RiskLevel;
   }[];
 }
 
-export function catalogSummary(catalog: BreachCatalog, latest = 6): CatalogSummary {
-  const french = pageBreaches(catalog.breaches);
-  const paths = breachPathsByName(catalog.breaches);
+/**
+ * Les compteurs (total, french) sont ceux du catalogue HIBP, cité comme source ; les
+ * dernières fuites incluent les fiches manuelles.
+ */
+export function catalogSummary(catalog: BreachCatalog, latest = 6, manual: Breach[] = []): CatalogSummary {
+  const all = withManualBreaches(catalog.breaches, manual);
+  const paths = breachPathsByName(all);
   return {
     fetchedOn: catalog.fetchedOn,
     total: catalog.breaches.length,
-    french: french.length,
-    latest: french.slice(0, latest).map((b) => ({
-      name: b.name,
-      title: b.title,
-      path: paths.get(b.name)!,
-      date: b.date,
-      pwnCount: b.pwnCount,
-      dataClasses: b.dataClasses.map(dataClassLabel),
-      risk: breachRisk(b.dataClasses),
-    })),
+    french: pageBreaches(catalog.breaches).length,
+    latest: pageBreaches(all)
+      .slice(0, latest)
+      .map((b) => ({
+        name: b.name,
+        title: b.title,
+        path: paths.get(b.name)!,
+        date: b.date,
+        pwnCount: b.pwnCount,
+        countUnit: countUnit(b),
+        dataClasses: b.dataClasses.map(dataClassLabel),
+        risk: breachRisk(b.dataClasses),
+      })),
   };
 }
 
@@ -140,7 +158,8 @@ const xml = (text: string) =>
 
 /**
  * Flux Atom des fuites françaises, par date d'ajout au catalogue HIBP (la plus
- * récente d'abord) : on s'abonne sans compte ni e-mail.
+ * récente d'abord ; fiche manuelle : date où la fuite a été rendue publique) :
+ * on s'abonne sans compte ni e-mail.
  */
 export function breachFeed(catalog: BreachCatalog, siteUrl: string, limit = 30): string {
   const paths = breachPathsByName(catalog.breaches);
@@ -152,7 +171,7 @@ export function breachFeed(catalog: BreachCatalog, siteUrl: string, limit = 30):
   const items = entries.map(({ b, added }) => {
     const url = siteUrl + paths.get(b.name)!;
     const types = b.dataClasses.map(dataClassLabel).join(', ');
-    const accounts = b.pwnCount > 0 ? ` ${count(b.pwnCount)} comptes.` : '';
+    const accounts = b.pwnCount > 0 ? ` ${count(b.pwnCount)} ${countUnit(b)}.` : '';
     return `  <entry>
     <title>${xml(`Fuite ${b.title} (${formatMonthFr(b.date)})`)}</title>
     <link href="${xml(url)}" />
@@ -164,7 +183,7 @@ export function breachFeed(catalog: BreachCatalog, siteUrl: string, limit = 30):
   return `<?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom" xml:lang="fr">
   <title>ShredRGPD · Fuites de données en France</title>
-  <subtitle>Fuites françaises du catalogue public Have I Been Pwned (CC BY 4.0), avec la marche à suivre.</subtitle>
+  <subtitle>Fuites françaises du catalogue public Have I Been Pwned (CC BY 4.0) et quelques fuites absentes de ce catalogue, sourcées, avec la marche à suivre.</subtitle>
   <link href="${xml(siteUrl)}/fuites.xml" rel="self" />
   <link href="${xml(siteUrl)}/" />
   <id>${xml(siteUrl)}/fuites.xml</id>

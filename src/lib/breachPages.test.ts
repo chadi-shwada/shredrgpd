@@ -9,7 +9,7 @@ import {
   formatMonthFr,
   pageBreaches,
 } from './breachPages';
-import { parseCatalog } from './breaches';
+import { parseCatalog, type Breach } from './breaches';
 
 const entry = (o: Record<string, unknown>) => ({
   Domain: 'exemple.test',
@@ -96,6 +96,42 @@ describe('résumé pour l’accueil', () => {
       ['Free', '/fuite/free', 'eleve'],
       ['La Poste Mobile', '/fuite/la-poste-mobile', 'faible'],
     ]);
+  });
+});
+
+const MANUAL: Breach = {
+  name: 'Manuelle2026',
+  title: 'Manuelle',
+  domain: 'manuelle.test',
+  date: '2026-07-02',
+  addedDate: '2026-08-20',
+  pwnCount: 2_000_000,
+  countUnit: 'personnes',
+  dataClasses: ['Names'],
+  verified: true,
+  fabricated: false,
+  sensitive: false,
+  spamList: false,
+  malware: false,
+  french: true,
+  manual: true,
+};
+
+describe('fuites ajoutées à la main', () => {
+  it('entrent dans les dernières fuites, pas dans les compteurs HIBP', () => {
+    const summary = catalogSummary(CATALOG, 2, [MANUAL]);
+    expect(summary).toMatchObject({ total: 7, french: 4 });
+    expect(summary.latest.map((l) => [l.path, l.countUnit])).toEqual([
+      ['/fuite/manuelle', 'personnes'],
+      ['/fuite/free', 'comptes'],
+    ]);
+  });
+
+  it('comptent des personnes dans la description et le flux', () => {
+    expect(breachPageMeta(MANUAL, 'manuelle').description).toMatch(/2\s000\s000 personnes/);
+    const feed = breachFeed({ ...CATALOG, breaches: [...CATALOG.breaches, MANUAL] }, 'https://shred.test');
+    expect(feed).toMatch(/2\s000\s000 personnes\./);
+    expect(feed).toContain('<updated>2026-08-20T00:00:00Z</updated>');
   });
 });
 

@@ -1,13 +1,16 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { ActionPlan } from '../components/ActionPlan';
 import { BreachMark } from '../components/BreachMark';
 import { ExternalLink } from '../components/ExternalLink';
 import { Icon } from '../components/Icon';
 import { PageHead } from '../components/PageHead';
 import { loadBreachCatalog, loadedBreachCatalog } from '../breachCatalog';
+import { BREACH_EDITORIAL } from '../data/breachEditorial';
 import { DPO_CONTACTS } from '../data/contacts';
+import { MANUAL_BREACHES } from '../data/manualBreaches';
 import { breachPageMeta, breachPathsByName, findBreachBySlug, formatMonthFr, pageBreaches } from '../lib/breachPages';
 import {
+  countUnit,
   dataClassLabel,
   formatCount,
   HIBP_LICENSE_URL,
@@ -15,6 +18,7 @@ import {
   HIBP_URL,
   hibpBreachUrl,
   RISKY_DATA_CLASSES,
+  withManualBreaches,
   type BreachCatalog,
 } from '../lib/breaches';
 import { formatLongFr } from '../lib/dates';
@@ -30,7 +34,9 @@ const OTHERS = 6;
 /**
  * Page publique d'une fuite française (/fuite/free…) : ce qui a fuité, comment
  * savoir si on est concerné, quoi faire, et la lettre pré-remplie.
- * Métadonnées publiques du catalogue HIBP seulement (règle n° 2).
+ * Métadonnées publiques du catalogue HIBP ou d'une fiche manuelle sourcée
+ * (src/data/manualBreaches.ts) seulement (règle n° 2), plus le texte rédigé de
+ * src/data/breachEditorial.ts quand il existe.
  */
 export function BreachPage({ slug }: { slug: string }) {
   const [catalog, setCatalog] = useState<BreachCatalog | null>(loadedBreachCatalog);
@@ -45,14 +51,15 @@ export function BreachPage({ slug }: { slug: string }) {
     };
   }, []);
 
-  const breach = catalog ? findBreachBySlug(catalog.breaches, slug) : null;
+  const breaches = useMemo(() => (catalog ? withManualBreaches(catalog.breaches, MANUAL_BREACHES) : null), [catalog]);
+  const breach = breaches ? findBreachBySlug(breaches, slug) : null;
 
   useEffect(() => {
     if (breach) document.title = breachPageMeta(breach, slug).title;
     else if (catalog) document.title = NOT_FOUND.title;
   }, [breach, catalog, slug]);
 
-  if (!catalog) {
+  if (!catalog || !breaches) {
     return (
       <PageHead eyebrow="Fuite de données" title="Chargement…">
         Lecture du catalogue des fuites.
@@ -61,17 +68,33 @@ export function BreachPage({ slug }: { slug: string }) {
   }
   if (!breach) return <NotFound />;
 
-  const paths = breachPathsByName(catalog.breaches);
-  const others = pageBreaches(catalog.breaches)
+  const paths = breachPathsByName(breaches);
+  const others = pageBreaches(breaches)
     .filter((b) => b.name !== breach.name)
     .slice(0, OTHERS);
   const contact = DPO_CONTACTS[breach.name];
+  const editorial = BREACH_EDITORIAL[breach.name];
   const risk = breachRisk(breach.dataClasses);
+  const unit = countUnit(breach);
   const facts = [
     { label: 'Date de la fuite', value: formatLongFr(breach.date) },
-    ...(breach.pwnCount > 0 ? [{ label: 'Comptes touchés', value: formatCount(breach.pwnCount) }] : []),
+    ...(breach.pwnCount > 0
+      ? [
+          {
+            label: unit === 'personnes' ? 'Personnes touchées' : 'Comptes touchés',
+            value: formatCount(breach.pwnCount),
+          },
+        ]
+      : []),
     { label: 'Types de données', value: String(breach.dataClasses.length) },
-    ...(breach.addedDate ? [{ label: 'Connue de HIBP depuis le', value: formatLongFr(breach.addedDate) }] : []),
+    ...(breach.addedDate
+      ? [
+          {
+            label: breach.manual ? 'Rendue publique le' : 'Connue de HIBP depuis le',
+            value: formatLongFr(breach.addedDate),
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -117,18 +140,33 @@ export function BreachPage({ slug }: { slug: string }) {
             )}
 
             <h2>Es-tu concerné ?</h2>
-            <p>
-              Cherche ton adresse e-mail sur Have I Been Pwned : si elle apparaît dans la fuite {breach.title}, tes
-              données en font partie. Ton e-mail ne passe jamais par ShredRGPD.
-            </p>
-            <p className="btn-row">
-              <ExternalLink href={HIBP_URL} className="btn btn--primary">
-                Chercher mon e-mail
-              </ExternalLink>
-              <ExternalLink href={hibpBreachUrl(breach)} className="btn">
-                Fiche de la fuite sur HIBP
-              </ExternalLink>
-            </p>
+            {breach.manual && editorial?.concerned ? (
+              editorial.concerned.map((text) => <p key={text}>{text}</p>)
+            ) : (
+              <>
+                <p>
+                  Cherche ton adresse e-mail sur Have I Been Pwned : si elle apparaît dans la fuite {breach.title}, tes
+                  données en font partie. Ton e-mail ne passe jamais par ShredRGPD.
+                </p>
+                <p className="btn-row">
+                  <ExternalLink href={HIBP_URL} className="btn btn--primary">
+                    Chercher mon e-mail
+                  </ExternalLink>
+                  <ExternalLink href={hibpBreachUrl(breach)} className="btn">
+                    Fiche de la fuite sur HIBP
+                  </ExternalLink>
+                </p>
+              </>
+            )}
+
+            {editorial?.sections.map((section) => (
+              <Fragment key={section.heading}>
+                <h2>{section.heading}</h2>
+                {section.paragraphs.map((text) => (
+                  <p key={text}>{text}</p>
+                ))}
+              </Fragment>
+            ))}
 
             <h2>Que faire maintenant ?</h2>
             <ActionPlan dataClasses={breach.dataClasses} write={breach.verified} />
@@ -204,11 +242,46 @@ export function BreachPage({ slug }: { slug: string }) {
               )}
             </p>
 
+            {editorial && editorial.faq.length > 0 && (
+              <>
+                <h2>Questions fréquentes</h2>
+                {editorial.faq.map(({ q, a }) => (
+                  <div key={q}>
+                    <h3>{q}</h3>
+                    <p>{a}</p>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {editorial && (
+              <>
+                <h2>Sources</h2>
+                <ul>
+                  {editorial.sources.map((source) => (
+                    <li key={source.url}>
+                      <ExternalLink href={source.url}>{source.label}</ExternalLink>
+                    </li>
+                  ))}
+                </ul>
+                <p className="hint">Informations relevées le {formatLongFr(editorial.verifiedOn)}.</p>
+              </>
+            )}
+
             <p className="hint verify__credit">
-              Informations : <ExternalLink href={HIBP_URL}>Have I Been Pwned</ExternalLink>, sous licence{' '}
-              <ExternalLink href={HIBP_LICENSE_URL}>CC BY 4.0</ExternalLink>
-              {catalog.fetchedOn && <>, mise à jour le {formatLongFr(catalog.fetchedOn)}</>}. Ce sont des informations
-              publiques sur la fuite, pas les données fuitées. {LOGO_NOTICE}
+              {breach.manual ? (
+                <>
+                  Cette fuite n'est pas dans le catalogue de Have I Been Pwned : les informations viennent des sources
+                  ci-dessus.
+                </>
+              ) : (
+                <>
+                  Informations : <ExternalLink href={HIBP_URL}>Have I Been Pwned</ExternalLink>, sous licence{' '}
+                  <ExternalLink href={HIBP_LICENSE_URL}>CC BY 4.0</ExternalLink>
+                  {catalog.fetchedOn && <>, mise à jour le {formatLongFr(catalog.fetchedOn)}</>}.
+                </>
+              )}{' '}
+              Ce sont des informations publiques sur la fuite, pas les données fuitées. {LOGO_NOTICE}
             </p>
           </div>
 

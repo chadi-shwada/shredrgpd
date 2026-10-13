@@ -5,7 +5,8 @@ import react from '@vitejs/plugin-react';
 import { SITE_URL } from './src/config';
 import { allBreachPageMeta, breachFeed, catalogSummary } from './src/lib/breachPages';
 import { statsSource } from './src/lib/breachStats';
-import { EMPTY_CATALOG, parseCatalog, type BreachCatalog } from './src/lib/breaches';
+import { MANUAL_BREACHES } from './src/data/manualBreaches';
+import { EMPTY_CATALOG, parseCatalog, withManualBreaches, type BreachCatalog } from './src/lib/breaches';
 import { headTags, htmlFileName, NOT_FOUND, pageMeta, PAGES, robotsTxt, sitemapXml } from './src/seo';
 import { CSP_META } from './src/security';
 
@@ -38,6 +39,12 @@ function readCatalog(): BreachCatalog {
   }
 }
 
+/** Catalogue HIBP plus les fuites ajoutées à la main (src/data/manualBreaches.ts) : pages et flux, pas les chiffres. */
+function readPageCatalog(): BreachCatalog {
+  const catalog = readCatalog();
+  return { ...catalog, breaches: withManualBreaches(catalog.breaches, MANUAL_BREACHES) };
+}
+
 /**
  * Modules virtuels calculés au build à partir du catalogue, sans le charger en entier :
  * « virtual:catalog-summary » (chiffres et dernières fuites françaises pour l'accueil)
@@ -45,7 +52,7 @@ function readCatalog(): BreachCatalog {
  * qui calcule ses chiffres dans le navigateur selon les filtres).
  */
 const VIRTUAL_MODULES: Record<string, () => unknown> = {
-  'virtual:catalog-summary': () => catalogSummary(readCatalog()),
+  'virtual:catalog-summary': () => catalogSummary(readCatalog(), 6, MANUAL_BREACHES),
   'virtual:breach-stats': () => statsSource(readCatalog()),
 };
 
@@ -85,7 +92,7 @@ function seo(): Plugin {
       }
       const template = index.source as string;
       if (!template.includes(SEO_MARKER)) this.error('marqueur SEO absent de index.html');
-      const catalog = readCatalog();
+      const catalog = readPageCatalog();
       // Image d'aperçu par fuite si scripts/og-images.mjs l'a générée ; sinon og.png.
       const breachPages = allBreachPageMeta(catalog.breaches).map((page) => {
         const slug = page.path.slice('/fuite/'.length);

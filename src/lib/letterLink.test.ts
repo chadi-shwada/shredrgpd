@@ -31,6 +31,10 @@ describe('breachLetterQuery', () => {
   it('omet le nom de la fuite s’il répète le titre', () => {
     expect(breachLetterQuery({ ...breach!, name: 'EXEMPLE' }, 'effacement')).not.toHaveProperty('fuite');
   });
+
+  it('omet le nom d’une fiche manuelle, inconnu hors de ShredRGPD', () => {
+    expect(breachLetterQuery({ ...breach!, manual: true }, 'acces')).not.toHaveProperty('fuite');
+  });
 });
 
 describe('parseCategories', () => {

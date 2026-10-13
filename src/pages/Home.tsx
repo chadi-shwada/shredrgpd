@@ -157,7 +157,9 @@ export function Home() {
                     </span>
                     <span className="recent-breach__meta">
                       {b.pwnCount > 0 && (
-                        <span className="recent-breach__count">{formatCount(b.pwnCount)} comptes</span>
+                        <span className="recent-breach__count">
+                          {formatCount(b.pwnCount)} {b.countUnit}
+                        </span>
                       )}
                       <span className={`risk risk--${b.risk}`}>{RISK_LABELS[b.risk]}</span>
                     </span>
