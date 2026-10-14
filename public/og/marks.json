@@ -187,5 +187,19 @@
     "y": 188,
     "size": 104,
     "radius": 28
+  },
+  "sfr": {
+    "name": "SFRFibre2026",
+    "x": 64,
+    "y": 188,
+    "size": 104,
+    "radius": 28
+  },
+  "france-travail": {
+    "name": "FranceTravail2024",
+    "x": 64,
+    "y": 188,
+    "size": 104,
+    "radius": 28
   }
 }
