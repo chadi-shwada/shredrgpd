@@ -201,5 +201,12 @@
     "y": 188,
     "size": 104,
     "radius": 28
+  },
+  "gites-de-france": {
+    "name": "GitesDeFrance",
+    "x": 64,
+    "y": 188,
+    "size": 104,
+    "radius": 28
   }
 }
