@@ -208,5 +208,12 @@
     "y": 188,
     "size": 104,
     "radius": 28
+  },
+  "assurance-retraite": {
+    "name": "AssuranceRetraite",
+    "x": 64,
+    "y": 188,
+    "size": 104,
+    "radius": 28
   }
 }
