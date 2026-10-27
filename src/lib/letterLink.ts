@@ -5,10 +5,12 @@
 
 import { mapDataClasses, type Breach } from './breaches';
 import type { IsoDate } from './dates';
+import type { Lang } from './lang';
 import { DATA_CATEGORIES, type DataCategory, type InitialKind, type LetterInput } from './letters';
 
-export function breachLetterQuery(breach: Breach, kind: InitialKind): Record<string, string> {
-  const { categories, others } = mapDataClasses(breach.dataClasses);
+/** Paramètres de la lettre pré-remplie ; les autres données sont écrites dans la langue de la page. */
+export function breachLetterQuery(breach: Breach, kind: InitialKind, lang: Lang = 'fr'): Record<string, string> {
+  const { categories, others } = mapDataClasses(breach.dataClasses, lang);
   const query: Record<string, string> = {
     type: kind,
     contexte: 'violation',
@@ -51,8 +53,9 @@ export function breachLetterInput(
   kind: InitialKind,
   identity: { fullName: string; email?: string },
   date: IsoDate,
+  lang: Lang = 'fr',
 ): LetterInput {
-  const { categories, others } = mapDataClasses(breach.dataClasses);
+  const { categories, others } = mapDataClasses(breach.dataClasses, lang);
   return {
     kind,
     context: 'violation',

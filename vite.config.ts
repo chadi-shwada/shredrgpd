@@ -7,7 +7,7 @@ import { allBreachPageMeta, breachFeed, catalogSummary } from './src/lib/breachP
 import { statsSource } from './src/lib/breachStats';
 import { MANUAL_BREACHES } from './src/data/manualBreaches';
 import { EMPTY_CATALOG, parseCatalog, withManualBreaches, type BreachCatalog } from './src/lib/breaches';
-import { headTags, htmlFileName, NOT_FOUND, pageMeta, PAGES, robotsTxt, sitemapXml } from './src/seo';
+import { headTags, htmlFileName, NOT_FOUND, pageMeta, PAGES, PAGES_EN, robotsTxt, sitemapXml, type PageMeta } from './src/seo';
 import { CSP_META } from './src/security';
 
 // CSP appliquée au build seulement (le serveur de dev a besoin de scripts en ligne).
@@ -27,6 +27,13 @@ function csp(): Plugin {
 }
 
 const SEO_MARKER = '<!-- shred:seo -->';
+const HTML_LANG = '<html lang="fr"';
+
+/** Page HTML d'une adresse : balises <head> et langue du document. */
+function pageHtml(template: string, page: PageMeta, options?: { noindex?: boolean }): string {
+  const html = template.replace(SEO_MARKER, headTags(page, options));
+  return page.lang === 'en' ? html.replace(HTML_LANG, '<html lang="en"') : html;
+}
 
 /** Catalogue HIBP téléchargé par prebuild (scripts/fetch-breaches.mjs) ; vide s'il manque. */
 function readCatalog(): BreachCatalog {
@@ -72,7 +79,8 @@ function catalogModules(): Plugin {
  * description, son adresse canonique et son aperçu de partage, plus 404.html
  * (non indexée), robots.txt et sitemap.xml, plus une page par fuite française
  * (fuite/free.html…) et le flux Atom fuites.xml, tirés du catalogue HIBP. Vercel sert verifier.html sur
- * /verifier grâce à cleanUrls (vercel.json). Source : src/seo.ts.
+ * /verifier grâce à cleanUrls (vercel.json). Version anglaise : en.html, en/check.html…, avec
+ * <html lang="en">. Source : src/seo.ts.
  */
 function seo(): Plugin {
   return {
@@ -92,6 +100,7 @@ function seo(): Plugin {
       }
       const template = index.source as string;
       if (!template.includes(SEO_MARKER)) this.error('marqueur SEO absent de index.html');
+      if (!template.includes(HTML_LANG)) this.error(`${HTML_LANG} absent de index.html`);
       const catalog = readPageCatalog();
       // Image d'aperçu par fuite si scripts/og-images.mjs l'a générée ; sinon og.png.
       const breachPages = allBreachPageMeta(catalog.breaches).map((page) => {
@@ -102,15 +111,15 @@ function seo(): Plugin {
         );
         return image ? { ...page, image } : page;
       });
-      for (const page of [...PAGES, ...breachPages]) {
-        const html = template.replace(SEO_MARKER, headTags(page));
+      for (const page of [...PAGES, ...PAGES_EN, ...breachPages]) {
+        const html = pageHtml(template, page);
         if (page.path === '/') index.source = html;
         else this.emitFile({ type: 'asset', fileName: htmlFileName(page), source: html });
       }
       this.emitFile({
         type: 'asset',
         fileName: '404.html',
-        source: template.replace(SEO_MARKER, headTags(NOT_FOUND, { noindex: true })),
+        source: pageHtml(template, NOT_FOUND, { noindex: true }),
       });
       this.emitFile({ type: 'asset', fileName: 'robots.txt', source: robotsTxt() });
       this.emitFile({ type: 'asset', fileName: 'sitemap.xml', source: sitemapXml(breachPages) });

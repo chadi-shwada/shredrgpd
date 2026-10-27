@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   dataClassLabel,
+  formatCount,
   findBreachesInText,
   hibpBreachUrl,
   mapDataClasses,
   newFrenchBreachesSince,
   parseCatalog,
   searchBreaches,
+  translateDataList,
   withManualBreaches,
 } from './breaches';
 
@@ -212,5 +214,28 @@ describe('withManualBreaches', () => {
 
   it('garde une autre fuite du même domaine, éloignée dans le temps', () => {
     expect(withManualBreaches(hibp, [manual('2026-07-02')])).toHaveLength(3);
+  });
+});
+
+describe('libellés en anglais', () => {
+  it('garde le libellé HIBP en minuscule, sauf les sigles', () => {
+    expect(dataClassLabel('Phone numbers', 'en')).toBe('phone numbers');
+    expect(dataClassLabel('IP addresses', 'en')).toBe('IP addresses');
+    expect(dataClassLabel('PINs', 'en')).toBe('PINs');
+    expect(mapDataClasses(['Email addresses', 'Genders'], 'en')).toEqual({
+      categories: ['email'],
+      others: ['genders'],
+    });
+  });
+
+  it('traduit la liste des autres données vers la langue de la lettre, sans toucher au texte libre', () => {
+    expect(translateDataList('genre, employeur, numéro client', 'en')).toBe('genders, employers, numéro client');
+    expect(translateDataList('genders, employers', 'fr')).toBe('genre, employeur');
+    expect(translateDataList('genre', 'fr')).toBe('genre');
+    expect(translateDataList('', 'en')).toBe('');
+  });
+
+  it('écrit les nombres selon la langue', () => {
+    expect(formatCount(13926173, 'en')).toBe('13,926,173');
   });
 });

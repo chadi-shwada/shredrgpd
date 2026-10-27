@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { useI18n } from '../i18n';
 import { Icon } from './Icon';
 
 /**
@@ -13,16 +14,19 @@ const SLICES = 12;
 const WIDTH = 100 / SLICES;
 
 function LeakCard() {
+  const { t } = useI18n();
   return (
     <div className="terminal">
       <div className="terminal__bar">
         <span className="terminal__dot" />
         <span className="terminal__dot" />
         <span className="terminal__dot" />
-        <span className="terminal__title">extrait de fuite · deezer_2019</span>
+        <span className="terminal__title">{t('extrait de fuite · deezer_2019', 'breach extract · deezer_2019')}</span>
       </div>
       <div className="terminal__body">
-        <span className="terminal__alert">Fuite détectée · 4 champs exposés</span>
+        <span className="terminal__alert">
+          {t('Fuite détectée · 4 champs exposés', 'Breach detected · 4 fields exposed')}
+        </span>
         <dl className="terminal__rows">
           <div className="terminal__row">
             <dt>email</dt>
@@ -42,7 +46,7 @@ function LeakCard() {
           </div>
         </dl>
         <p className="terminal__prompt">
-          <b>$</b> shredrgpd --effacer --rgpd art.17
+          <b>$</b> {t('shredrgpd --effacer --rgpd art.17', 'shredrgpd --erase --gdpr art.17')}
           <span className="terminal__cursor" />
         </p>
         <p className="terminal__hex">
@@ -54,6 +58,7 @@ function LeakCard() {
 }
 
 export function ShredSheet() {
+  const { t } = useI18n();
   return (
     <div className="shred" aria-hidden="true">
       <div className="shred__stage">
@@ -62,8 +67,8 @@ export function ShredSheet() {
             <Icon name="check" size={28} />
           </span>
           <div>
-            <strong>Demande d'effacement envoyée</strong>
-            <span>art. 17 RGPD · réponse sous un mois</span>
+            <strong>{t("Demande d'effacement envoyée", 'Erasure request sent')}</strong>
+            <span>{t('art. 17 RGPD · réponse sous un mois', 'art. 17 GDPR · reply within one month')}</span>
           </div>
         </div>
         {Array.from({ length: SLICES }, (_, i) => (

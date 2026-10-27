@@ -312,3 +312,114 @@ describe('sorties', () => {
     expect(mailtoHref(letter, 'a@b.test?cc=x').startsWith('mailto:a@b.testcc=x?')).toBe(true);
   });
 });
+
+describe('lettres en anglais', () => {
+  const kinds = ['effacement', 'acces', 'opposition', 'fermeture', 'relance', 'signalement'] as const;
+  const contexts = ['exposition', 'violation'] as const;
+  const full: LetterInput = {
+    ...base,
+    previousRequestDate: '2026-08-31',
+    previousKind: 'acces',
+    breachName: 'Exemple',
+    breachDate: '2024-10-01',
+  };
+
+  it('cite les mêmes articles que la lettre française, dans le même ordre', () => {
+    for (const kind of kinds) {
+      for (const context of contexts) {
+        const input = { ...full, kind, context };
+        expect(generateLetter(input, 'en').articles).toEqual(generateLetter(input).articles);
+      }
+    }
+  });
+
+  it('garde la même structure : même nombre de paragraphes', () => {
+    for (const kind of kinds) {
+      for (const context of contexts) {
+        const input = { ...full, kind, context };
+        const count = (body: string) => body.split('\n\n').length;
+        expect(count(generateLetter(input, 'en').body)).toBe(count(generateLetter(input).body));
+      }
+    }
+  });
+
+  it('reprend les termes de la version anglaise officielle du RGPD', () => {
+    const letter = generateLetter(base, 'en');
+    expect(letter.lang).toBe('en');
+    expect(letter.subject).toBe('Request for erasure of personal data (Article 17 GDPR)');
+    expect(letter.body).toContain('Under Article 17(1) of Regulation (EU) 2016/679 (GDPR)');
+    expect(letter.body).toContain('point (d) (personal data that have been unlawfully processed)');
+    expect(letter.body).toContain('in accordance with Article 17(2) of the GDPR');
+    expect(letter.body).toContain('In accordance with Article 19 of the GDPR');
+    expect(letter.body).toContain('without undue delay and in any event within one month of receipt');
+    expect(letter.body).toContain('free of charge (Article 12(5) of the GDPR)');
+    expect(letter.body).toContain('lodge a complaint with the Commission nationale');
+    expect(letter.body).toContain('in accordance with Article 77 of the GDPR');
+  });
+
+  it('salue, signe et date à l’anglaise', () => {
+    const letter = generateLetter(base, 'en');
+    expect(letter.body.startsWith('Dear Sir or Madam,\n\n')).toBe(true);
+    expect(letter.body).toContain('\n\nYours faithfully,\n\n');
+    expect(letter.body.endsWith('Camille Martin\ncamille@example.org\n\n5 October 2026')).toBe(true);
+    expect(letterToText(letter).startsWith('Subject: Request for erasure')).toBe(true);
+    expect(letterToText(generateLetter(base)).startsWith('Objet : ')).toBe(true);
+  });
+
+  it('écrit les catégories de données en anglais et garde le texte libre', () => {
+    const body = generateLetter(base, 'en').body;
+    expect(body).toContain('- email address\n- password or its hash\n- numéro client');
+  });
+
+  it('cite la violation et demande ses détails (articles 34 et 33(3))', () => {
+    const body = generateLetter({ ...full, context: 'violation' }, 'en').body;
+    expect(body).toContain('(listed under the name "Exemple", dated 1 October 2024)');
+    expect(body).toContain('Article 34(2), which refers to Article 33(3)');
+  });
+
+  it('relance : rappelle la demande, le délai (12(3)) et l’obligation de motiver un refus (12(4))', () => {
+    const letter = generateLetter({ ...full, kind: 'relance' }, 'en');
+    expect(letter.subject).toBe('Reminder: request for access to my personal data (Article 15 GDPR)');
+    expect(letter.body).toContain('On 31 August 2026, I sent you a request for access to my personal data');
+    expect(letter.body).toContain('by around 30 September 2026');
+    expect(letter.body).toContain('Article 12(4) of the GDPR');
+    const objection = generateLetter({ ...full, kind: 'relance', previousKind: 'opposition' }, 'en');
+    expect(objection.subject).toBe('Reminder: objection to the processing of my personal data (Article 21 GDPR)');
+    expect(objection.body).toContain('I sent you an objection');
+  });
+
+  it('opposition : articles 21(2), 21(3), 21(1), 17(1)(c) et 15(1)(g)', () => {
+    const body = generateLetter({ ...base, kind: 'opposition' }, 'en').body;
+    for (const ref of ['Article 21(2)', 'Article 21(3)', 'Article 21(1)', 'Article 17(1)(c)', 'Article 15(1)(g)']) {
+      expect(body).toContain(ref);
+    }
+  });
+
+  it('fermeture : articles 7(3), 17(1)(a) et (b), 17(3)(b)', () => {
+    const body = generateLetter({ ...base, kind: 'fermeture' }, 'en').body;
+    expect(body).toContain('Articles 7(3) and 17(1)(b)');
+    expect(body).toContain('Article 17(1)(a)');
+    expect(body).toContain('Article 17(3)(b) of the GDPR');
+  });
+
+  it('signalement à l’hébergeur : article 16 du DSA et déclaration de bonne foi', () => {
+    const letter = generateLetter({ ...base, kind: 'signalement', reportTarget: 'hebergeur' }, 'en');
+    expect(letter.subject).toContain('Article 16 of Regulation (EU) 2022/2065');
+    expect(letter.body).toContain('Digital Services Act');
+    expect(letter.body).toContain('contrary to Articles 5 and 6 of the GDPR');
+    expect(letter.body).toContain('I declare in good faith');
+  });
+
+  it('ne laisse aucune formule française dans la lettre anglaise', () => {
+    for (const kind of kinds) {
+      for (const context of contexts) {
+        const { subject, body } = generateLetter({ ...full, kind, context, otherData: '' }, 'en');
+        expect(`${subject}\n${body}`).not.toMatch(/Madame|Monsieur|RGPD\)|règlement|données|article \d/);
+      }
+    }
+  });
+
+  it('donne les erreurs dans la langue de la lettre', () => {
+    expect(() => generateLetter({ ...base, fullName: ' ' }, 'en')).toThrow('The name is required.');
+  });
+});

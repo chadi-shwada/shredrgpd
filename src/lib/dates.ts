@@ -4,6 +4,8 @@
  * selon le fuseau de la personne.
  */
 
+import type { Lang } from './lang';
+
 export type IsoDate = string;
 
 interface Ymd {
@@ -27,6 +29,21 @@ const MONTHS_FR = [
   'octobre',
   'novembre',
   'décembre',
+] as const;
+
+const MONTHS_EN = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ] as const;
 
 function isLeapYear(y: number): boolean {
@@ -98,6 +115,13 @@ export function daysBetween(from: IsoDate, to: IsoDate): number {
 export function formatLongFr(iso: IsoDate): string {
   const { y, m, d } = parseOrThrow(iso);
   return `${d === 1 ? '1er' : d} ${MONTHS_FR[m - 1]} ${y}`;
+}
+
+/** « 1er octobre 2026 » en français, « 1 October 2026 » en anglais (usage britannique). */
+export function formatLong(iso: IsoDate, lang: Lang): string {
+  if (lang === 'fr') return formatLongFr(iso);
+  const { y, m, d } = parseOrThrow(iso);
+  return `${d} ${MONTHS_EN[m - 1]} ${y}`;
 }
 
 /**

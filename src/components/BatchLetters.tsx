@@ -1,14 +1,17 @@
 import { useId, useMemo, useState } from 'react';
 import { copyText, downloadText } from '../browser';
 import { DPO_CONTACTS } from '../data/contacts';
+import { FrenchTag, useI18n } from '../i18n';
 import type { Breach } from '../lib/breaches';
 import { todayIso } from '../lib/dates';
+import type { Lang } from '../lib/lang';
 import { breachLetterInput } from '../lib/letterLink';
-import { generateLetter, letterToText, mailtoHref, INITIAL_KINDS, type InitialKind } from '../lib/letters';
+import { generateLetter, kindLabel, letterToText, mailtoHref, type InitialKind } from '../lib/letters';
 import { newId, withLetter, type TrackedRequest } from '../lib/tracking';
 import { useTracking } from '../useTracking';
 import { ExternalLink } from './ExternalLink';
 import { Icon } from './Icon';
+import { LetterLanguage } from './LetterLanguage';
 import { Notice } from './Notice';
 
 const KINDS: InitialKind[] = ['acces', 'effacement', 'fermeture'];
@@ -16,7 +19,9 @@ const KINDS: InitialKind[] = ['acces', 'effacement', 'fermeture'];
 /** Une lettre par fuite cochée, en une fois, avec ajout groupé au suivi. */
 export function BatchLetters({ breaches }: { breaches: Breach[] }) {
   const id = useId();
+  const { t, lang, link, frenchOnly } = useI18n();
   const [kind, setKind] = useState<InitialKind>('acces');
+  const [letterLang, setLetterLang] = useState<Lang>('fr');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [keepCopy, setKeepCopy] = useState(false);
@@ -28,10 +33,10 @@ export function BatchLetters({ breaches }: { breaches: Breach[] }) {
     if (!fullName.trim()) return [];
     return breaches.map((breach) => ({
       breach,
-      letter: generateLetter(breachLetterInput(breach, kind, { fullName, email }, today)),
+      letter: generateLetter(breachLetterInput(breach, kind, { fullName, email }, today, letterLang), letterLang),
       contact: DPO_CONTACTS[breach.name],
     }));
-  }, [breaches, kind, fullName, email, today]);
+  }, [breaches, kind, fullName, email, today, letterLang]);
 
   const onDownloadAll = () => {
     const text = letters
@@ -39,7 +44,7 @@ export function BatchLetters({ breaches }: { breaches: Breach[] }) {
         [`===== ${breach.title}${contact ? ` (${contact.contact})` : ''} =====`, '', letterToText(letter)].join('\n'),
       )
       .join('\n\n');
-    downloadText(`shred-lettres-${today}.txt`, text);
+    downloadText(`shred-${t('lettres', 'letters')}-${today}.txt`, text);
   };
 
   const onTrackAll = () => {
@@ -53,22 +58,26 @@ export function BatchLetters({ breaches }: { breaches: Breach[] }) {
           channel: 'email',
           sentOn: today,
           status: 'envoyee',
-          notes: `Fuite HIBP : ${breach.name}`,
+          notes: `${t('Fuite HIBP : ', 'HIBP breach: ')}${breach.name}`,
         };
         return keepCopy ? withLetter(request, { date: today, subject: letter.subject, body: letter.body }) : request;
       }),
     ]);
+    const n = letters.length;
     setFeedback(
-      `${letters.length} demande${letters.length > 1 ? 's' : ''} ajoutée${letters.length > 1 ? 's' : ''} au suivi.`,
+      t(
+        `${n} demande${n > 1 ? 's' : ''} ajoutée${n > 1 ? 's' : ''} au suivi.`,
+        `${n} request${n > 1 ? 's' : ''} added to the tracker.`,
+      ),
     );
   };
 
   return (
     <div className="batch">
-      <h3>Écrire à toutes les entreprises</h3>
+      <h3>{t('Écrire à toutes les entreprises', 'Write to all the companies')}</h3>
       <div className="field-row">
         <div className="field">
-          <label htmlFor={`${id}-kind`}>Demande</label>
+          <label htmlFor={`${id}-kind`}>{t('Demande', 'Request')}</label>
           <select
             id={`${id}-kind`}
             className="select"
@@ -77,13 +86,15 @@ export function BatchLetters({ breaches }: { breaches: Breach[] }) {
           >
             {KINDS.map((k) => (
               <option key={k} value={k}>
-                {k === 'acces' ? 'Savoir ce qui a fuité (accès)' : INITIAL_KINDS[k].label}
+                {k === 'acces'
+                  ? t('Savoir ce qui a fuité (accès)', 'Find out what leaked (access)')
+                  : kindLabel(k, lang)}
               </option>
             ))}
           </select>
         </div>
         <div className="field">
-          <label htmlFor={`${id}-name`}>Ton nom complet</label>
+          <label htmlFor={`${id}-name`}>{t('Ton nom complet', 'Your full name')}</label>
           <input
             id={`${id}-name`}
             className="input"
@@ -95,7 +106,8 @@ export function BatchLetters({ breaches }: { breaches: Breach[] }) {
       </div>
       <div className="field">
         <label htmlFor={`${id}-email`}>
-          E-mail concerné par les fuites <span className="optional">(facultatif)</span>
+          {t('E-mail concerné par les fuites', 'Email address in the breaches')}{' '}
+          <span className="optional">{t('(facultatif)', '(optional)')}</span>
         </label>
         <input
           id={`${id}-email`}
@@ -107,9 +119,15 @@ export function BatchLetters({ breaches }: { breaches: Breach[] }) {
           spellCheck={false}
         />
       </div>
+      <LetterLanguage value={letterLang} onChange={setLetterLang} plural />
 
       {letters.length === 0 ? (
-        <p className="hint">Indique ton nom pour préparer les {breaches.length} lettres.</p>
+        <p className="hint">
+          {t(
+            `Indique ton nom pour préparer les ${breaches.length} lettres.`,
+            `Enter your name to prepare the ${breaches.length} letters.`,
+          )}
+        </p>
       ) : (
         <>
           <ul className="batch__list">
@@ -123,21 +141,24 @@ export function BatchLetters({ breaches }: { breaches: Breach[] }) {
                         DPO : {contact.contact} · <ExternalLink href={contact.source}>source</ExternalLink>
                       </>
                     ) : (
-                      'Contact à trouver dans sa politique de confidentialité'
+                      t(
+                        'Contact à trouver dans sa politique de confidentialité',
+                        'Find the contact in its privacy policy',
+                      )
                     )}
                   </span>
                 </div>
                 <div className="btn-row">
                   <button type="button" className="btn btn--sm" onClick={() => copyText(letterToText(letter))}>
                     <Icon name="copy" size={16} />
-                    Copier
+                    {t('Copier', 'Copy')}
                   </button>
                   <a
                     className="btn btn--sm"
                     href={mailtoHref(letter, contact?.kind === 'email' ? contact.contact : '')}
                   >
                     <Icon name="mail" size={16} />
-                    Messagerie
+                    {t('Messagerie', 'Email app')}
                   </a>
                 </div>
               </li>
@@ -146,25 +167,31 @@ export function BatchLetters({ breaches }: { breaches: Breach[] }) {
           <label className="check">
             <input type="checkbox" checked={keepCopy} onChange={(e) => setKeepCopy(e.target.checked)} />
             <span>
-              Garder une copie des lettres dans le suivi, pour un éventuel dossier CNIL (elles contiennent ton nom et
-              restent dans ce navigateur)
+              {t(
+                'Garder une copie des lettres dans le suivi, pour un éventuel dossier CNIL (elles contiennent ton nom et restent dans ce navigateur)',
+                'Keep a copy of the letters in the tracker, for a possible complaint to the CNIL (they contain your name and stay in this browser)',
+              )}
             </span>
           </label>
           <div className="btn-row">
             <button type="button" className="btn btn--primary" onClick={onTrackAll}>
               <Icon name="plus" size={18} />
-              Tout ajouter au suivi
+              {t('Tout ajouter au suivi', 'Add all to the tracker')}
             </button>
             <button type="button" className="btn" onClick={onDownloadAll}>
               <Icon name="download" size={18} />
-              Tout télécharger
+              {t('Tout télécharger', 'Download all')}
             </button>
           </div>
           <div aria-live="polite">
             {feedback && (
               <Notice tone="ok">
                 <p>
-                  {feedback} <a href="/suivi">Voir le suivi</a>
+                  {feedback}{' '}
+                  <a href={link('/suivi')}>
+                    {t('Voir le suivi', 'See the tracker')}
+                    {frenchOnly('/suivi') && <FrenchTag />}
+                  </a>
                 </p>
               </Notice>
             )}

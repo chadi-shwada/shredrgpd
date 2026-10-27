@@ -15,3 +15,7 @@ export const SOURCE_CODE_URL: string | null = 'https://github.com/chadi-shwada/s
 export const SITE_TITLE = "ShredRGPD · Demande l'effacement de tes données";
 export const SITE_DESCRIPTION =
   'Vérifie ce qui a fuité et demande l’effacement de tes données personnelles avec une lettre RGPD. Gratuit, sans compte, sans traceur : tes données restent dans ton navigateur.';
+
+export const SITE_TITLE_EN = 'ShredRGPD · Request the erasure of your data';
+export const SITE_DESCRIPTION_EN =
+  'See what leaked and request the erasure of your personal data with a GDPR letter. Free, no account, no tracker: your data stay in your browser.';

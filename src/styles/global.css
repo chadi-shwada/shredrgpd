@@ -389,7 +389,7 @@ code {
   margin-left: 1rem;
 }
 
-@media (max-width: 1023px) {
+@media (max-width: 1079px) {
   .site-header[data-scrolled='true'] .site-header__inner {
     border-radius: var(--radius-lg);
   }
@@ -499,12 +499,53 @@ code {
   margin-left: 0.75rem;
 }
 
+/* Lien vers l'autre langue (FR / EN), à côté du bouton principal. */
+.lang-switch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.5rem;
+  min-height: 2.25rem;
+  margin-left: 0.25rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.lang-switch:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+  text-decoration: none;
+}
+
+/* « FR » après un lien de la version anglaise qui mène à une page en français. */
+.lang-tag {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0 0.3rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.45;
+  vertical-align: 0.1em;
+  text-decoration: none;
+}
+
 .site-header .nav-toggle {
   display: none;
 }
 
-/* Menu replié avant que les six entrées ne passent sur deux lignes (vérifié à 1000 px). */
-@media (max-width: 1023px) {
+/* Menu replié avant que les six entrées et le lien de langue ne passent sur deux lignes
+   (français jusqu’à 1043 px, anglais jusqu’à 1027 px, mesuré le 27 octobre 2026). */
+@media (max-width: 1079px) {
   .site-header .nav-toggle {
     display: inline-flex;
   }
@@ -1915,6 +1956,19 @@ fieldset:last-child {
   gap: 0.5rem;
 }
 
+/* Deux choix côte à côte, sans occuper toute la largeur (langue de la lettre). */
+.segmented--compact {
+  max-width: 24rem;
+}
+
+.letter-lang {
+  margin: 0 0 1rem;
+}
+
+.letter-lang .hint {
+  margin-top: 0.5rem;
+}
+
 /* Aide pour trouver le bon contact */
 .finder {
   margin-bottom: 1.15rem;
@@ -2093,6 +2147,21 @@ fieldset:last-child {
 
 .paper-wrap {
   position: relative;
+}
+
+/* Choix de la langue de la lettre, au-dessus de la feuille. */
+.preview-lang {
+  padding: 0.9rem 1.1rem 0;
+}
+
+.preview-lang .letter-lang {
+  margin: 0;
+}
+
+@media print {
+  .preview-lang {
+    display: none;
+  }
 }
 
 .paper {
@@ -2857,6 +2926,11 @@ input[type='range'] {
 .guides__notice {
   max-width: 52rem;
   margin-top: 2.5rem;
+}
+
+/* Version anglaise : rappel en tête que les services cités sont français. */
+.guides__notice--top {
+  margin: 0 0 2rem;
 }
 
 /* ---------- Encadrés ---------- */

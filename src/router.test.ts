@@ -56,3 +56,18 @@ describe('anchorId', () => {
     expect(anchorId('#/lettre?site=x')).toBeNull();
   });
 });
+
+describe('version anglaise', () => {
+  it('lit la langue dans le chemin', () => {
+    const route = parseLocation('/en/letter', '#site=exemple.test');
+    expect(route).toMatchObject({ path: '/lettre', lang: 'en' });
+    expect(route.query.get('site')).toBe('exemple.test');
+    expect(parseLocation('/en/', '').path).toBe('/');
+    expect(parseLocation('/lettre', '').lang).toBe('fr');
+  });
+
+  it('écrit le lien dans la langue de la page', () => {
+    expect(href('/lettre', { type: 'acces' }, 'en')).toBe('/en/letter#type=acces');
+    expect(href('/suivi', undefined, 'en')).toBe('/suivi');
+  });
+});

@@ -1,18 +1,20 @@
 import { useId, useState } from 'react';
 import { copyText } from '../browser';
 import { entropyBits, generatePassword, type Charset } from '../lib/password';
+import { useI18n } from '../i18n';
 import { Icon } from './Icon';
 
-const SETS: { key: Charset; label: string }[] = [
-  { key: 'minuscules', label: 'Minuscules' },
-  { key: 'majuscules', label: 'Majuscules' },
-  { key: 'chiffres', label: 'Chiffres' },
-  { key: 'symboles', label: 'Symboles' },
+const SETS: { key: Charset; label: string; en: string }[] = [
+  { key: 'minuscules', label: 'Minuscules', en: 'Lowercase' },
+  { key: 'majuscules', label: 'Majuscules', en: 'Uppercase' },
+  { key: 'chiffres', label: 'Chiffres', en: 'Digits' },
+  { key: 'symboles', label: 'Symboles', en: 'Symbols' },
 ];
 
 /** Générateur de mot de passe, calculé dans le navigateur. Rien n'est enregistré. */
 export function PasswordGenerator() {
   const id = useId();
+  const { t } = useI18n();
   const [length, setLength] = useState(20);
   const [sets, setSets] = useState<Charset[]>(['minuscules', 'majuscules', 'chiffres', 'symboles']);
   const [password, setPassword] = useState(() => generatePassword(20));
@@ -31,7 +33,14 @@ export function PasswordGenerator() {
   };
 
   const bits = entropyBits(length, sets);
-  const strength = bits >= 100 ? 'très solide' : bits >= 75 ? 'solide' : bits >= 60 ? 'correct' : 'faible';
+  const strength =
+    bits >= 100
+      ? t('très solide', 'very strong')
+      : bits >= 75
+        ? t('solide', 'strong')
+        : bits >= 60
+          ? t('correct', 'fair')
+          : t('faible', 'weak');
 
   return (
     <section className="card" aria-labelledby={`${id}-t`}>
@@ -39,7 +48,7 @@ export function PasswordGenerator() {
         <span className="card__num">
           <Icon name="lock" size={14} />
         </span>
-        Crée un mot de passe solide
+        {t('Crée un mot de passe solide', 'Create a strong password')}
       </h2>
       <div className="generator-pw">
         <output className="generator-pw__value" aria-live="polite" htmlFor={`${id}-len`}>
@@ -52,16 +61,16 @@ export function PasswordGenerator() {
             onClick={async () => setCopied(await copyText(password))}
           >
             <Icon name="copy" size={16} />
-            {copied ? 'Copié' : 'Copier'}
+            {copied ? t('Copié', 'Copied') : t('Copier', 'Copy')}
           </button>
           <button type="button" className="btn btn--sm" onClick={() => regenerate()}>
-            Générer un autre
+            {t('Générer un autre', 'Generate another')}
           </button>
         </div>
       </div>
       <div className="field">
         <label htmlFor={`${id}-len`}>
-          Longueur : {length} caractères{' '}
+          {t(`Longueur : ${length} caractères`, `Length: ${length} characters`)}{' '}
           <span className="optional">
             ({strength}, {bits} bits)
           </span>
@@ -80,18 +89,21 @@ export function PasswordGenerator() {
         />
       </div>
       <fieldset>
-        <legend className="legend">Caractères</legend>
+        <legend className="legend">{t('Caractères', 'Characters')}</legend>
         <div className="checks checks--compact">
           {SETS.map((s) => (
             <label className="check" key={s.key}>
               <input type="checkbox" checked={sets.includes(s.key)} onChange={() => toggleSet(s.key)} />
-              <span>{s.label}</span>
+              <span>{t(s.label, s.en)}</span>
             </label>
           ))}
         </div>
       </fieldset>
       <p className="hint">
-        Calculé dans ton navigateur, jamais envoyé ni enregistré. Garde-le dans un gestionnaire de mots de passe.
+        {t(
+          'Calculé dans ton navigateur, jamais envoyé ni enregistré. Garde-le dans un gestionnaire de mots de passe.',
+          'Generated in your browser, never sent or stored. Keep it in a password manager.',
+        )}
       </p>
     </section>
   );

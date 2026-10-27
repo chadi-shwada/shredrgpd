@@ -8,6 +8,7 @@
  */
 
 import { isValidIsoDate, type IsoDate } from './dates';
+import { locale, type Lang } from './lang';
 import type { DataCategory } from './letters';
 
 export interface Breach {
@@ -50,6 +51,13 @@ export const HIBP_URL = 'https://haveibeenpwned.com';
 export const LOGO_NOTICE =
   "Logos fournis par Have I Been Pwned. Les marques appartiennent à leurs propriétaires ; ShredRGPD n'a aucun lien avec ces entreprises.";
 
+export const LOGO_NOTICE_EN =
+  'Logos provided by Have I Been Pwned. Trademarks belong to their owners; ShredRGPD has no connection with these companies.';
+
+export function logoNotice(lang: Lang): string {
+  return lang === 'en' ? LOGO_NOTICE_EN : LOGO_NOTICE;
+}
+
 /** Types de données les plus sensibles, mis en avant en rouge. */
 export const RISKY_DATA_CLASSES: ReadonlySet<string> = new Set([
   'Passwords',
@@ -58,9 +66,9 @@ export const RISKY_DATA_CLASSES: ReadonlySet<string> = new Set([
   'Bank account numbers',
 ]);
 
-/** « 13 926 173 ». */
-export function formatCount(n: number): string {
-  return new Intl.NumberFormat('fr-FR').format(n);
+/** « 13 926 173 » en français, « 13,926,173 » en anglais. */
+export function formatCount(n: number, lang: Lang = 'fr'): string {
+  return new Intl.NumberFormat(locale(lang)).format(n);
 }
 export const HIBP_LICENSE_URL = 'https://creativecommons.org/licenses/by/4.0/';
 
@@ -284,13 +292,37 @@ const FRENCH: Record<string, string> = {
   'Years of professional experience': "années d'expérience professionnelle",
 };
 
-/** Libellé français d'un type de données HIBP (l'original si inconnu). */
-export function dataClassLabel(dataClass: string): string {
+/**
+ * Libellé d'un type de données HIBP : traduit en français (l'original si inconnu) ; en anglais,
+ * le libellé HIBP en minuscule, sauf les sigles (« IP addresses », « PINs »).
+ */
+export function dataClassLabel(dataClass: string, lang: Lang = 'fr'): string {
+  if (lang === 'en')
+    return /^[A-Z]{2}/.test(dataClass) ? dataClass : dataClass.charAt(0).toLowerCase() + dataClass.slice(1);
   return FRENCH[dataClass] ?? dataClass;
 }
 
+/**
+ * Traduit la liste « autres données » d'une lettre (« genre, employeur » → « genders, employers ») :
+ * chaque élément qui est le libellé d'un type HIBP dans une langue prend celui de l'autre langue.
+ * Ce que la personne a tapé elle-même reste tel quel.
+ */
+export function translateDataList(text: string, to: Lang): string {
+  const from: Lang = to === 'en' ? 'fr' : 'en';
+  return text
+    .split(', ')
+    .map((item) => {
+      const dc = Object.keys(FRENCH).find((key) => dataClassLabel(key, from) === item.trim());
+      return dc ? dataClassLabel(dc, to) : item;
+    })
+    .join(', ');
+}
+
 /** Répartit les types HIBP entre cases du générateur et texte libre, sans doublon. */
-export function mapDataClasses(dataClasses: string[]): { categories: DataCategory[]; others: string[] } {
+export function mapDataClasses(
+  dataClasses: string[],
+  lang: Lang = 'fr',
+): { categories: DataCategory[]; others: string[] } {
   const categories: DataCategory[] = [];
   const others: string[] = [];
   for (const dc of dataClasses) {
@@ -298,7 +330,7 @@ export function mapDataClasses(dataClasses: string[]): { categories: DataCategor
     if (category) {
       if (!categories.includes(category)) categories.push(category);
     } else {
-      const label = dataClassLabel(dc);
+      const label = dataClassLabel(dc, lang);
       if (!others.includes(label)) others.push(label);
     }
   }

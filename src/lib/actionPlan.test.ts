@@ -31,3 +31,26 @@ describe('loadDone', () => {
     expect(loadDone(null)).toEqual([]);
   });
 });
+
+describe('buildActionPlan en anglais', () => {
+  it('garde les mêmes actions, traduites, avec des liens vers les pages anglaises', () => {
+    const classes = [
+      'Email addresses',
+      'Passwords',
+      'Phone numbers',
+      'Credit cards',
+      'Social security numbers',
+      'Names',
+    ];
+    const fr = buildActionPlan(classes);
+    const en = buildActionPlan(classes, { lang: 'en' });
+    expect(en.map((i) => i.id)).toEqual(fr.map((i) => i.id));
+    for (const [i, item] of en.entries()) {
+      expect(item.title).not.toBe(fr[i]!.title);
+      expect(Boolean(item.link)).toBe(Boolean(fr[i]!.link));
+    }
+    expect(en.find((i) => i.id === 'mdp-unique')?.link?.href).toBe('/en/check#parcours=mot-de-passe');
+    expect(en.find((i) => i.id === 'tel-33700')?.link?.href).toBe('/en/what-to-do');
+    expect(en.find((i) => i.id === 'identite')?.detail).toContain('116 006');
+  });
+});

@@ -378,7 +378,9 @@ export function Stats() {
                           </th>
                           <td>{formatMonthFr(b.date)}</td>
                           <td className="num">{b.pwnCount > 0 ? formatCount(b.pwnCount) : '—'}</td>
-                          <td className="stats-table__types">{b.dataClasses.map(dataClassLabel).join(', ')}</td>
+                          <td className="stats-table__types">
+                            {b.dataClasses.map((dc) => dataClassLabel(dc)).join(', ')}
+                          </td>
                         </tr>
                       ))}
                     </tbody>

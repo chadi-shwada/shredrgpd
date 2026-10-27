@@ -16,6 +16,7 @@ import {
   type BreachCatalog,
 } from './breaches';
 import { formatLongFr, type IsoDate } from './dates';
+import type { Lang } from './lang';
 import { breachRisk, type RiskLevel } from './risk';
 import { slugify } from './slug';
 
@@ -74,9 +75,17 @@ const MONTHS_SHORT = [
   'déc.',
 ];
 
+const MONTHS_SHORT_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 /** « oct. 2024 ». */
 export function formatMonthFr(iso: IsoDate): string {
   return `${MONTHS_SHORT[Number(iso.slice(5, 7)) - 1]} ${iso.slice(0, 4)}`;
+}
+
+/** « oct. 2024 » en français, « Oct 2024 » en anglais. */
+export function formatMonth(iso: IsoDate, lang: Lang): string {
+  if (lang === 'fr') return formatMonthFr(iso);
+  return `${MONTHS_SHORT_EN[Number(iso.slice(5, 7)) - 1]} ${iso.slice(0, 4)}`;
 }
 
 export interface BreachPageMeta {
@@ -88,7 +97,10 @@ export interface BreachPageMeta {
 }
 
 export function breachPageMeta(breach: Breach, slug: string): BreachPageMeta {
-  const types = breach.dataClasses.slice(0, 4).map(dataClassLabel).join(', ');
+  const types = breach.dataClasses
+    .slice(0, 4)
+    .map((dc) => dataClassLabel(dc))
+    .join(', ');
   const accounts = breach.pwnCount > 0 ? `${count(breach.pwnCount)} ${countUnit(breach)}, ` : '';
   return {
     path: BREACH_PATH_PREFIX + slug,
@@ -120,6 +132,7 @@ export interface CatalogSummary {
     date: IsoDate;
     pwnCount: number;
     countUnit: 'comptes' | 'personnes';
+    /** Types de données HIBP, non traduits : la page les affiche dans sa langue. */
     dataClasses: string[];
     risk: RiskLevel;
   }[];
@@ -145,7 +158,7 @@ export function catalogSummary(catalog: BreachCatalog, latest = 6, manual: Breac
         date: b.date,
         pwnCount: b.pwnCount,
         countUnit: countUnit(b),
-        dataClasses: b.dataClasses.map(dataClassLabel),
+        dataClasses: b.dataClasses,
         risk: breachRisk(b.dataClasses),
       })),
   };
@@ -170,7 +183,7 @@ export function breachFeed(catalog: BreachCatalog, siteUrl: string, limit = 30):
   const updated = `${entries[0]?.added ?? catalog.fetchedOn ?? '2026-01-01'}T00:00:00Z`;
   const items = entries.map(({ b, added }) => {
     const url = siteUrl + paths.get(b.name)!;
-    const types = b.dataClasses.map(dataClassLabel).join(', ');
+    const types = b.dataClasses.map((dc) => dataClassLabel(dc)).join(', ');
     const accounts = b.pwnCount > 0 ? ` ${count(b.pwnCount)} ${countUnit(b)}.` : '';
     return `  <entry>
     <title>${xml(`Fuite ${b.title} (${formatMonthFr(b.date)})`)}</title>

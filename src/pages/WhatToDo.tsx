@@ -2,7 +2,8 @@ import { ExternalLink } from '../components/ExternalLink';
 import { Icon, type IconName } from '../components/Icon';
 import { Notice } from '../components/Notice';
 import { PageHead } from '../components/PageHead';
-import { href } from '../router';
+import { FrenchTag, useI18n } from '../i18n';
+import { localizePath } from '../lib/paths';
 
 /*
  * Canaux officiels et démarches, vérifiés le 5 octobre 2026 :
@@ -21,6 +22,8 @@ interface Channel {
   title: string;
   text: string;
   action: { label: string; href: string };
+  /** Version anglaise (titre, texte). */
+  en: [string, string];
 }
 
 const MESSAGES: Channel[] = [
@@ -29,36 +32,60 @@ const MESSAGES: Channel[] = [
     title: 'Un SMS suspect',
     text: 'Transfère-le gratuitement au 33700, puis réponds au SMS automatique avec le numéro de l’expéditeur. Supprime-le ensuite sans cliquer sur le lien.',
     action: { label: '33700.fr', href: 'https://www.33700.fr/' },
+    en: [
+      'A suspicious text message',
+      'Forward it for free to 33700, then reply to the automatic text with the sender’s number. Then delete it without clicking the link.',
+    ],
   },
   {
     icon: 'bell',
     title: 'Un appel ou un message vocal suspect',
     text: 'Envoie « spam vocal » suivi du numéro qui t’a appelé, par SMS au 33700. Ne rappelle jamais un numéro inconnu qui cite tes informations.',
     action: { label: '33700.fr', href: 'https://www.33700.fr/' },
+    en: [
+      'A suspicious call or voicemail',
+      'Text “spam vocal” followed by the number that called you to 33700. Never call back an unknown number that quotes your details.',
+    ],
   },
   {
     icon: 'send',
     title: 'Un e-mail d’hameçonnage',
     text: "Ne clique sur rien, ne réponds pas. Signale-le sur Signal Spam : l'e-mail est transmis aux autorités et aux messageries.",
     action: { label: 'signal-spam.fr', href: 'https://www.signal-spam.fr/' },
+    en: [
+      'A phishing email',
+      'Do not click anything, do not reply. Report it on Signal Spam: the email is passed on to the authorities and to email providers.',
+    ],
   },
   {
     icon: 'external',
     title: 'Un lien vers un faux site',
     text: "Copie l'adresse du site (sans l'ouvrir) et signale-la sur Phishing Initiative pour qu'il soit bloqué. Pour une escroquerie, signale-la aussi sur Pharos.",
     action: { label: 'phishing-initiative.fr', href: 'https://phishing-initiative.fr/' },
+    en: [
+      'A link to a fake website',
+      'Copy the website address (without opening it) and report it on Phishing Initiative so that it gets blocked. For a scam, also report it on Pharos.',
+    ],
   },
   {
     icon: 'alert',
     title: 'Un démarchage téléphonique',
     text: "Depuis le 11 août 2026, un professionnel ne peut plus te démarcher par téléphone sans ton accord préalable (Bloctel n'existe plus). Signale l'entreprise à la répression des fraudes sur SignalConso.",
     action: { label: 'signal.conso.gouv.fr', href: 'https://signal.conso.gouv.fr/' },
+    en: [
+      'A cold call',
+      'Since 11 August 2026, a business can no longer cold-call you without your prior consent (Bloctel no longer exists). Report the company to the consumer protection authority on SignalConso.',
+    ],
   },
   {
     icon: 'shield',
     title: 'Une arnaque ou un contenu illicite en ligne',
     text: 'Signale-le aux policiers et gendarmes de la plateforme Pharos. Si tu as perdu de l’argent, dépose plainte.',
     action: { label: 'internet-signalement.gouv.fr', href: 'https://www.internet-signalement.gouv.fr/' },
+    en: [
+      'An online scam or illegal content',
+      'Report it to the police and gendarmerie on the Pharos platform. If you lost money, file a complaint.',
+    ],
   },
 ];
 
@@ -67,6 +94,8 @@ interface Guide {
   title: string;
   steps: string[];
   links: { label: string; href: string }[];
+  /** Version anglaise : titre, étapes, libellés des liens (même ordre). */
+  en: { title: string; steps: string[]; links: string[] };
 }
 
 const GUIDES: Guide[] = [
@@ -80,6 +109,16 @@ const GUIDES: Guide[] = [
       'Utilise un mot de passe différent par site, gardé dans un gestionnaire de mots de passe.',
     ],
     links: [{ label: 'Tester un mot de passe et en créer un', href: '/verifier#parcours=mot-de-passe' }],
+    en: {
+      title: 'My password leaked',
+      steps: [
+        'Change it on the website concerned, then everywhere you reused it.',
+        'Turn on two-factor authentication, starting with your email account: it can be used to reset all your other accounts.',
+        'Check the devices and sessions connected to your important accounts and sign out the ones you do not recognise.',
+        'Use a different password for each website, kept in a password manager.',
+      ],
+      links: ['Test a password and create one'],
+    },
   },
   {
     id: 'carte',
@@ -96,6 +135,16 @@ const GUIDES: Guide[] = [
         href: 'https://www.cybermalveillance.gouv.fr/tous-nos-contenus/fiches-reflexes/fraude-carte-bancaire',
       },
     ],
+    en: {
+      title: 'My card or bank details leaked',
+      steps: [
+        'Tell your bank and watch your statements in the following days and weeks.',
+        'If you see a payment you did not make, block your card straight away: with your bank, or on 0 892 705 705 (interbank line, 24/7, €0.34/min). Write down the blocking reference number.',
+        'Your bank will never ask you for a code received by text message, or for your login details by phone or email.',
+        'Dispute fraudulent payments with your bank and file a complaint if necessary.',
+      ],
+      links: ['Bank card fraud (cybermalveillance.gouv.fr)'],
+    },
   },
   {
     id: 'identite',
@@ -112,6 +161,16 @@ const GUIDES: Guide[] = [
         href: 'https://www.cybermalveillance.gouv.fr/tous-nos-contenus/fiches-reflexes/usurpation-identite-que-faire',
       },
     ],
+    en: {
+      title: 'My ID document or social security number leaked',
+      steps: [
+        'Keep evidence: dated screenshots, page addresses, messages received.',
+        'Watch your post and your accounts (bank, ameli, tax): a loan or subscription you did not ask for is a sign of identity theft.',
+        'Your social security number cannot be changed: stay wary of fake messages from the Assurance maladie (health insurance) or a mutuelle for a long time.',
+        'If your identity is misused, file a complaint and tell the organisations concerned. France Victimes supports you for free on 116 006, every day from 9 am to 7 pm.',
+      ],
+      links: ['Identity theft, what to do? (cybermalveillance.gouv.fr)'],
+    },
   },
   {
     id: 'email',
@@ -127,6 +186,15 @@ const GUIDES: Guide[] = [
         href: 'https://www.cybermalveillance.gouv.fr/tous-nos-contenus/fiches-reflexes/hameconnage-phishing',
       },
     ],
+    en: {
+      title: 'My email address leaked',
+      steps: [
+        'Expect convincing phishing that uses your name or the services you use.',
+        'Secure your email account first: a unique password and two-factor authentication.',
+        'Check the automatic forwarding rules of your email account: an attacker can add one to read your mail.',
+      ],
+      links: ['What to do about phishing (cybermalveillance.gouv.fr)'],
+    },
   },
   {
     id: 'telephone',
@@ -137,28 +205,57 @@ const GUIDES: Guide[] = [
       'Si ton téléphone perd soudain le réseau, contacte ton opérateur : ce peut être un détournement de ta ligne (changement frauduleux de carte SIM).',
     ],
     links: [{ label: '33700.fr', href: 'https://www.33700.fr/' }],
+    en: {
+      title: 'My phone number leaked',
+      steps: [
+        'Report suspicious texts and calls to 33700.',
+        'Beware of fake bank advisers: hang up and call your bank back on its usual number.',
+        'If your phone suddenly loses network, contact your operator: your line may have been hijacked (fraudulent SIM swap).',
+      ],
+      links: ['33700.fr'],
+    },
   },
 ];
 
 export function WhatToDo() {
+  const { t, lang, link } = useI18n();
+  const en = lang === 'en';
   return (
     <>
       <PageHead
-        eyebrow="Que faire ?"
-        command={{ input: 'shredrgpd aide --urgence', output: 'canaux officiels · démarches' }}
-        title="Les bons réflexes après une fuite"
+        eyebrow={t('Que faire ?', 'What to do?')}
+        command={{
+          input: t('shredrgpd aide --urgence', 'shredrgpd help --urgent'),
+          output: t('canaux officiels · démarches', 'official channels · steps'),
+        }}
+        title={t('Les bons réflexes après une fuite', 'What to do after a data breach')}
       >
-        Un message suspect, une carte exposée, un mot de passe dans la nature : voici à qui t'adresser, avec les canaux
-        officiels.
+        {t(
+          "Un message suspect, une carte exposée, un mot de passe dans la nature : voici à qui t'adresser, avec les canaux officiels.",
+          'A suspicious message, an exposed card, a password out in the wild: here is who to contact, through the official channels in France.',
+        )}
       </PageHead>
 
       <div className="container page-body">
+        {en && (
+          <div className="guides__notice guides__notice--top">
+            <Notice>
+              <p>
+                These are the official French services. Their websites are mainly in French, and the steps assume you
+                live in France.
+              </p>
+            </Notice>
+          </div>
+        )}
         <section aria-labelledby="message-suspect">
           <div className="section__head">
-            <span className="eyebrow">Message suspect</span>
-            <h2 id="message-suspect">J'ai reçu un message suspect</h2>
+            <span className="eyebrow">{t('Message suspect', 'Suspicious message')}</span>
+            <h2 id="message-suspect">{t("J'ai reçu un message suspect", 'I received a suspicious message')}</h2>
             <p className="lead">
-              Les fuites servent souvent à rendre les arnaques plus crédibles. Ne clique pas, ne réponds pas, signale.
+              {t(
+                'Les fuites servent souvent à rendre les arnaques plus crédibles. Ne clique pas, ne réponds pas, signale.',
+                'Breaches are often used to make scams more convincing. Do not click, do not reply, report it.',
+              )}
             </p>
           </div>
           <ul className="channels">
@@ -167,10 +264,11 @@ export function WhatToDo() {
                 <span className="step__icon">
                   <Icon name={c.icon} />
                 </span>
-                <h3>{c.title}</h3>
-                <p>{c.text}</p>
+                <h3>{en ? c.en[0] : c.title}</h3>
+                <p>{en ? c.en[1] : c.text}</p>
                 <ExternalLink href={c.action.href} className="channel__link">
                   {c.action.label}
+                  {en && <FrenchTag />}
                   <Icon name="external" size={14} />
                 </ExternalLink>
               </li>
@@ -180,31 +278,37 @@ export function WhatToDo() {
 
         <section aria-labelledby="selon-donnee" className="guides">
           <div className="section__head">
-            <span className="eyebrow">Selon ce qui a fuité</span>
-            <h2 id="selon-donnee">Les démarches, donnée par donnée</h2>
+            <span className="eyebrow">{t('Selon ce qui a fuité', 'Depending on what leaked')}</span>
+            <h2 id="selon-donnee">{t('Les démarches, donnée par donnée', 'The steps, data type by data type')}</h2>
           </div>
           <div className="faq">
             {GUIDES.map((g) => (
               <details key={g.id} id={g.id}>
                 <summary>
-                  {g.title}
+                  {en ? g.en.title : g.title}
                   <Icon name="plus" size={18} />
                 </summary>
                 <ol className="guide__steps">
-                  {g.steps.map((step) => (
+                  {(en ? g.en.steps : g.steps).map((step) => (
                     <li key={step}>{step}</li>
                   ))}
                 </ol>
                 <ul className="guide__links">
-                  {g.links.map((l) => (
-                    <li key={l.href}>
-                      {l.href.startsWith('/') ? (
-                        <a href={l.href}>{l.label}</a>
-                      ) : (
-                        <ExternalLink href={l.href}>{l.label}</ExternalLink>
-                      )}
-                    </li>
-                  ))}
+                  {g.links.map((l, i) => {
+                    const label = en ? (g.en.links[i] ?? l.label) : l.label;
+                    return (
+                      <li key={l.href}>
+                        {l.href.startsWith('/') ? (
+                          <a href={localizePath(l.href, lang)}>{label}</a>
+                        ) : (
+                          <ExternalLink href={l.href}>
+                            {label}
+                            {en && <FrenchTag />}
+                          </ExternalLink>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               </details>
             ))}
@@ -214,9 +318,14 @@ export function WhatToDo() {
         <div className="guides__notice">
           <Notice>
             <p>
-              Ensuite, exerce tes droits : <a href={href('/verifier')}>vérifie ce qui a fuité</a> et{' '}
-              <a href={href('/lettre')}>écris aux entreprises concernées</a>. En cas d'urgence ou de danger, compose le
-              17.
+              {t('Ensuite, exerce tes droits : ', 'Then exercise your rights: ')}
+              <a href={link('/verifier')}>{t('vérifie ce qui a fuité', 'check what leaked')}</a>
+              {t(' et ', ' and ')}
+              <a href={link('/lettre')}>{t('écris aux entreprises concernées', 'write to the companies concerned')}</a>
+              {t(
+                ". En cas d'urgence ou de danger, compose le 17.",
+                '. In an emergency or if you are in danger, call 17 (police) or 112.',
+              )}
             </p>
           </Notice>
         </div>

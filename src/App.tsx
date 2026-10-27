@@ -13,6 +13,7 @@ import { Tracker } from './pages/Tracker';
 import { Verify } from './pages/Verify';
 import { WhatToDo } from './pages/WhatToDo';
 import { BREACH_PATH_PREFIX } from './lib/breachPages';
+import { LangProvider } from './i18n';
 import { revealOnScroll } from './reveal';
 import { pageMeta } from './seo';
 import { anchorId, interceptLinks, upgradeLegacyUrl, useRoute, type Route } from './router';
@@ -66,7 +67,8 @@ export function App() {
     // Les pages de fuite posent leur titre une fois le catalogue chargé.
     document.title = route.path.startsWith(BREACH_PATH_PREFIX)
       ? 'Fuite de données · ShredRGPD'
-      : pageMeta(route.path).title;
+      : pageMeta(route.path, route.lang).title;
+    document.documentElement.lang = route.lang;
     if (first.current) {
       first.current = false;
       return;
@@ -77,14 +79,16 @@ export function App() {
     if (target) target.scrollIntoView();
     else window.scrollTo(0, 0);
     document.getElementById('contenu')?.focus({ preventScroll: true });
-  }, [route.path]);
+  }, [route.path, route.lang]);
 
   // Après le rendu de chaque page : apparition des blocs au défilement.
-  useEffect(() => revealOnScroll(), [route.path]);
+  useEffect(() => revealOnScroll(), [route.path, route.lang]);
 
   return (
-    <Layout path={route.path}>
-      <Page route={route} />
-    </Layout>
+    <LangProvider lang={route.lang}>
+      <Layout path={route.path}>
+        <Page key={route.lang} route={route} />
+      </Layout>
+    </LangProvider>
   );
 }

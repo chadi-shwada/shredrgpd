@@ -11,12 +11,13 @@ import { PageHead } from '../components/PageHead';
 import { BreachMark } from '../components/BreachMark';
 import { PasswordGenerator } from '../components/PasswordGenerator';
 import { PasteResults } from '../components/PasteResults';
+import { FrenchTag, useI18n } from '../i18n';
 import { breachPathsByName } from '../lib/breachPages';
 import {
   dataClassLabel,
   formatCount,
   HIBP_LICENSE_URL,
-  LOGO_NOTICE,
+  logoNotice,
   HIBP_URL,
   hibpBreachUrl,
   newFrenchBreachesSince,
@@ -26,10 +27,10 @@ import {
   type Breach,
   type BreachCatalog,
 } from '../lib/breaches';
-import { formatLongFr, isValidIsoDate, todayIso } from '../lib/dates';
+import { formatLong, isValidIsoDate, todayIso } from '../lib/dates';
 import { breachLetterQuery } from '../lib/letterLink';
 import { pwnedCount, PwnedServiceError } from '../lib/pwned';
-import { href, navigate, useRoute } from '../router';
+import { navigate, useRoute } from '../router';
 
 /**
  * Date de la dernière visite, gardée seulement si la personne a demandé à voir les nouvelles fuites
@@ -42,11 +43,31 @@ const OLD_LAST_VISIT_KEY = 'shred.verifier.derniereVisite';
 /** Ce que la personne veut vérifier (paramètre « parcours » du fragment). */
 type Situation = 'verifier' | 'mot-de-passe' | 'message' | 'publie';
 
-const SITUATIONS: { value: Situation; label: string; hint: string; icon: IconName }[] = [
-  { value: 'verifier', label: 'Mon adresse e-mail', hint: 'a-t-elle fuité ?', icon: 'mail' },
-  { value: 'mot-de-passe', label: 'Un mot de passe', hint: 'a-t-il fuité ? en créer un solide', icon: 'lock' },
-  { value: 'message', label: "Une entreprise m'a prévenu", hint: 'e-mail ou courrier reçu', icon: 'alert' },
-  { value: 'publie', label: 'Mes données sont publiées', hint: 'sur un site ou un forum', icon: 'database' },
+const SITUATIONS: { value: Situation; icon: IconName; fr: [string, string]; en: [string, string] }[] = [
+  {
+    value: 'verifier',
+    icon: 'mail',
+    fr: ['Mon adresse e-mail', 'a-t-elle fuité ?'],
+    en: ['My email address', 'has it leaked?'],
+  },
+  {
+    value: 'mot-de-passe',
+    icon: 'lock',
+    fr: ['Un mot de passe', 'a-t-il fuité ? en créer un solide'],
+    en: ['A password', 'has it leaked? create a strong one'],
+  },
+  {
+    value: 'message',
+    icon: 'alert',
+    fr: ["Une entreprise m'a prévenu", 'e-mail ou courrier reçu'],
+    en: ['A company warned me', 'email or letter received'],
+  },
+  {
+    value: 'publie',
+    icon: 'database',
+    fr: ['Mes données sont publiées', 'sur un site ou un forum'],
+    en: ['My data are published', 'on a website or forum'],
+  },
 ];
 
 function asSituation(value: string | null): Situation {
@@ -67,6 +88,7 @@ type PwnedState =
 
 function PasswordCheck() {
   const id = useId();
+  const { t } = useI18n();
   const [password, setPassword] = useState('');
   const [state, setState] = useState<PwnedState>({ status: 'idle' });
 
@@ -80,7 +102,10 @@ function PasswordCheck() {
     } catch (error) {
       setState({
         status: 'error',
-        message: error instanceof PwnedServiceError ? error.message : "Le test n'a pas pu aboutir. Réessaie plus tard.",
+        message:
+          error instanceof PwnedServiceError
+            ? t(error.message, 'The Pwned Passwords service did not respond correctly. Try again later.')
+            : t("Le test n'a pas pu aboutir. Réessaie plus tard.", 'The test could not be completed. Try again later.'),
       });
     } finally {
       // On ne garde pas le mot de passe en mémoire plus que nécessaire.
@@ -94,11 +119,11 @@ function PasswordCheck() {
         <span className="card__num">
           <Icon name="lock" size={14} />
         </span>
-        Teste un mot de passe
+        {t('Teste un mot de passe', 'Test a password')}
       </h2>
       <form onSubmit={onSubmit} noValidate>
         <div className="field">
-          <label htmlFor={`${id}-pw`}>Mot de passe</label>
+          <label htmlFor={`${id}-pw`}>{t('Mot de passe', 'Password')}</label>
           <input
             id={`${id}-pw`}
             className="input input--mono"
@@ -112,7 +137,7 @@ function PasswordCheck() {
         </div>
         <button type="submit" className="btn btn--primary" disabled={!password || state.status === 'loading'}>
           <Icon name="search" size={18} />
-          {state.status === 'loading' ? 'Test en cours…' : 'Tester'}
+          {state.status === 'loading' ? t('Test en cours…', 'Testing…') : t('Tester', 'Test')}
         </button>
       </form>
 
@@ -120,15 +145,29 @@ function PasswordCheck() {
         {state.status === 'found' && (
           <Notice tone="danger">
             <p>
-              <strong>Ce mot de passe apparaît {formatCount(state.count)} fois dans des fuites connues.</strong>
+              <strong>
+                {t(
+                  `Ce mot de passe apparaît ${formatCount(state.count)} fois dans des fuites connues.`,
+                  `This password appears ${formatCount(state.count, 'en')} times in known breaches.`,
+                )}
+              </strong>
             </p>
-            <p>Ne l'utilise plus nulle part et remplace-le partout où il sert encore.</p>
+            <p>
+              {t(
+                "Ne l'utilise plus nulle part et remplace-le partout où il sert encore.",
+                'Stop using it anywhere and replace it wherever it is still used.',
+              )}
+            </p>
           </Notice>
         )}
         {state.status === 'clean' && (
           <Notice tone="ok">
             <p>
-              <strong>Aucune occurrence connue.</strong> Ça ne prouve pas qu'il est solide : garde-le unique et long.
+              <strong>{t('Aucune occurrence connue.', 'No known occurrence.')}</strong>{' '}
+              {t(
+                "Ça ne prouve pas qu'il est solide : garde-le unique et long.",
+                'That does not prove it is strong: keep it unique and long.',
+              )}
             </p>
           </Notice>
         )}
@@ -140,22 +179,28 @@ function PasswordCheck() {
       </div>
 
       <p className="hint verify__how" id={`${id}-how`}>
-        ShredRGPD calcule l'empreinte SHA-1 dans ton navigateur et n'envoie que ses 5 premiers caractères à{' '}
-        <ExternalLink href="https://haveibeenpwned.com/Passwords">Pwned Passwords</ExternalLink>. Le service renvoie des
-        centaines d'empreintes qui commencent pareil, et la comparaison se fait chez toi. Ton mot de passe ne quitte
-        jamais ton appareil.
+        {t(
+          "ShredRGPD calcule l'empreinte SHA-1 dans ton navigateur et n'envoie que ses 5 premiers caractères à ",
+          'ShredRGPD computes the SHA-1 hash in your browser and sends only its first 5 characters to ',
+        )}
+        <ExternalLink href="https://haveibeenpwned.com/Passwords">Pwned Passwords</ExternalLink>
+        {t(
+          ". Le service renvoie des centaines d'empreintes qui commencent pareil, et la comparaison se fait chez toi. Ton mot de passe ne quitte jamais ton appareil.",
+          '. The service returns hundreds of hashes that start the same way, and the comparison happens on your device. Your password never leaves your device.',
+        )}
       </p>
     </section>
   );
 }
 
 function BreachRow({ breach, selected, onToggle }: { breach: Breach; selected: boolean; onToggle: () => void }) {
+  const { t, lang } = useI18n();
   const shown = breach.dataClasses.slice(0, 3);
   const more = breach.dataClasses.length - shown.length;
   const meta = [
     breach.domain,
-    formatLongFr(breach.date),
-    breach.pwnCount > 0 ? `${formatCount(breach.pwnCount)} comptes` : '',
+    formatLong(breach.date, lang),
+    breach.pwnCount > 0 ? `${formatCount(breach.pwnCount, lang)} ${t('comptes', 'accounts')}` : '',
   ].filter(Boolean);
   return (
     <li className="breach" data-selected={selected}>
@@ -165,25 +210,33 @@ function BreachRow({ breach, selected, onToggle }: { breach: Breach; selected: b
           <span className="breach__title">
             <BreachMark title={breach.title} name={breach.name} size="sm" />
             {breach.title}
-            {!breach.verified && <span className="breach__flag">non vérifiée</span>}
-            {breach.fabricated && <span className="breach__flag">possiblement fabriquée</span>}
-            {breach.spamList && <span className="breach__flag">liste de spam</span>}
-            {breach.malware && <span className="breach__flag">logiciel malveillant</span>}
+            {!breach.verified && <span className="breach__flag">{t('non vérifiée', 'unverified')}</span>}
+            {breach.fabricated && (
+              <span className="breach__flag">{t('possiblement fabriquée', 'possibly fabricated')}</span>
+            )}
+            {breach.spamList && <span className="breach__flag">{t('liste de spam', 'spam list')}</span>}
+            {breach.malware && <span className="breach__flag">{t('logiciel malveillant', 'malware')}</span>}
           </span>
           <span className="breach__meta">{meta.join(' · ')}</span>
           <span className="breach__classes">
             {shown.map((dc) => (
               <span key={dc} className={`chip${RISKY.has(dc) ? ' chip--danger' : ''}`}>
-                {dataClassLabel(dc)}
+                {dataClassLabel(dc, lang)}
               </span>
             ))}
             {more > 0 && <span className="chip">+{more}</span>}
           </span>
         </span>
       </label>
-      <ExternalLink href={hibpBreachUrl(breach)} className="breach__more" title="Voir la fiche sur Have I Been Pwned">
+      <ExternalLink
+        href={hibpBreachUrl(breach)}
+        className="breach__more"
+        title={t('Voir la fiche sur Have I Been Pwned', 'See the page on Have I Been Pwned')}
+      >
         <Icon name="external" size={16} />
-        <span className="visually-hidden">Fiche de {breach.title} sur Have I Been Pwned</span>
+        <span className="visually-hidden">
+          {t(`Fiche de ${breach.title} sur Have I Been Pwned`, `${breach.title} on Have I Been Pwned`)}
+        </span>
       </ExternalLink>
     </li>
   );
@@ -204,8 +257,9 @@ function Stepper({
   reached: number;
   onGo: (n: number) => void;
 }) {
+  const { t } = useI18n();
   return (
-    <nav aria-label="Étapes">
+    <nav aria-label={t('Étapes', 'Steps')}>
       <ol className={`stepper stepper--${steps.length}`}>
         {steps.map((label, i) => {
           const n = i + 1;
@@ -227,7 +281,7 @@ function Stepper({
         })}
       </ol>
       <p className="stepper__compact" aria-hidden="true">
-        Étape {step} sur {steps.length} · {steps[step - 1]}
+        {t(`Étape ${step} sur ${steps.length}`, `Step ${step} of ${steps.length}`)} · {steps[step - 1]}
       </p>
     </nav>
   );
@@ -240,10 +294,15 @@ function Stepper({
  */
 function BreachFlow({ mode, catalog }: { mode: 'verifier' | 'message'; catalog: BreachCatalog | null }) {
   const id = useId();
+  const { t, lang, link } = useI18n();
   const steps =
     mode === 'verifier'
-      ? ['Cherche ton e-mail', 'Coche les fuites', 'Quoi faire']
-      : ["Trouve l'entreprise", 'Quoi faire'];
+      ? [
+          t('Cherche ton e-mail', 'Search your email'),
+          t('Coche les fuites', 'Tick the breaches'),
+          t('Quoi faire', 'What to do'),
+        ]
+      : [t("Trouve l'entreprise", 'Find the company'), t('Quoi faire', 'What to do')];
   const last = steps.length;
   const pickStep = mode === 'verifier' ? 2 : 1;
   const [step, setStep] = useState(1);
@@ -332,19 +391,26 @@ function BreachFlow({ mode, catalog }: { mode: 'verifier' | 'message'; catalog: 
         <section className="card" aria-labelledby={`${id}-s1`}>
           <h2 className="card__title" id={`${id}-s1`} {...titleProps}>
             <span className="card__num">1</span>
-            Cherche ton adresse e-mail
+            {t('Cherche ton adresse e-mail', 'Search for your email address')}
           </h2>
           <p className="muted">
-            Have I Been Pwned, le service de référence, liste les fuites qui contiennent ton adresse. Ton e-mail ne
-            passe jamais par ShredRGPD : tu le tapes sur leur site.
+            {t(
+              'Have I Been Pwned, le service de référence, liste les fuites qui contiennent ton adresse. Ton e-mail ne passe jamais par ShredRGPD : tu le tapes sur leur site.',
+              'Have I Been Pwned, the reference service, lists the breaches that contain your address. Your email never goes through ShredRGPD: you type it on their website.',
+            )}
           </p>
           <ol className="howto">
             <li>
               <span className="howto__num">1</span>
               <div>
-                <strong>Ouvre Have I Been Pwned et tape ton adresse e-mail.</strong>
+                <strong>
+                  {t(
+                    'Ouvre Have I Been Pwned et tape ton adresse e-mail.',
+                    'Open Have I Been Pwned and type your email address.',
+                  )}
+                </strong>
                 <ExternalLink href={HIBP_URL} className="btn btn--primary btn--sm">
-                  Ouvrir Have I Been Pwned
+                  {t('Ouvrir Have I Been Pwned', 'Open Have I Been Pwned')}
                   <Icon name="external" size={16} />
                 </ExternalLink>
               </div>
@@ -352,16 +418,29 @@ function BreachFlow({ mode, catalog }: { mode: 'verifier' | 'message'; catalog: 
             <li>
               <span className="howto__num">2</span>
               <div>
-                <strong>Sur la page de résultats, sélectionne tout et copie.</strong>
+                <strong>
+                  {t(
+                    'Sur la page de résultats, sélectionne tout et copie.',
+                    'On the results page, select all and copy.',
+                  )}
+                </strong>
                 <span className="hint">
-                  Ctrl+A puis Ctrl+C, ou « Tout sélectionner » puis « Copier » sur téléphone.
+                  {t(
+                    'Ctrl+A puis Ctrl+C, ou « Tout sélectionner » puis « Copier » sur téléphone.',
+                    'Ctrl+A then Ctrl+C, or “Select all” then “Copy” on a phone.',
+                  )}
                 </span>
               </div>
             </li>
             <li>
               <span className="howto__num">3</span>
               <div>
-                <strong>Colle ici : ShredRGPD reconnaît les fuites pour toi.</strong>
+                <strong>
+                  {t(
+                    'Colle ici : ShredRGPD reconnaît les fuites pour toi.',
+                    'Paste here: ShredRGPD recognises the breaches for you.',
+                  )}
+                </strong>
                 {catalog && catalog.breaches.length > 0 && <PasteResults breaches={catalog.breaches} onAdd={addMany} />}
               </div>
             </li>
@@ -369,17 +448,22 @@ function BreachFlow({ mode, catalog }: { mode: 'verifier' | 'message'; catalog: 
           <div className="wizard__nav">
             <div className="btn-row">
               <button type="button" className="btn" onClick={() => goTo(2)}>
-                Je préfère chercher les fuites moi-même
+                {t('Je préfère chercher les fuites moi-même', 'I would rather search for the breaches myself')}
                 <Icon name="arrow" size={16} />
               </button>
             </div>
           </div>
           <details className="verify__none">
-            <summary>Have I Been Pwned n'a rien trouvé ?</summary>
+            <summary>{t("Have I Been Pwned n'a rien trouvé ?", 'Have I Been Pwned found nothing?')}</summary>
             <p>
-              Bonne nouvelle, mais pas une garantie : le service ne connaît que les fuites rendues publiques et ne voit
-              que l'adresse cherchée. Refais la recherche avec tes autres adresses, anciennes comprises. Pense aussi à{' '}
-              <a href={href('/verifier', { parcours: 'mot-de-passe' })}>tester tes mots de passe</a>.
+              {t(
+                "Bonne nouvelle, mais pas une garantie : le service ne connaît que les fuites rendues publiques et ne voit que l'adresse cherchée. Refais la recherche avec tes autres adresses, anciennes comprises. Pense aussi à ",
+                'Good news, but not a guarantee: the service only knows breaches that were made public and only sees the address you searched for. Search again with your other addresses, old ones included. Also remember to ',
+              )}
+              <a href={link('/verifier', { parcours: 'mot-de-passe' })}>
+                {t('tester tes mots de passe', 'test your passwords')}
+              </a>
+              .
             </p>
           </details>
         </section>
@@ -389,17 +473,29 @@ function BreachFlow({ mode, catalog }: { mode: 'verifier' | 'message'; catalog: 
         <section className="card" aria-labelledby={`${id}-s2`}>
           <h2 className="card__title" id={`${id}-s2`} {...titleProps}>
             <span className="card__num">{pickStep}</span>
-            {mode === 'message' ? "Trouve l'entreprise" : 'Coche les fuites qui te concernent'}
+            {mode === 'message'
+              ? t("Trouve l'entreprise", 'Find the company')
+              : t('Coche les fuites qui te concernent', 'Tick the breaches that concern you')}
           </h2>
 
-          {catalog === null && <p className="muted">Chargement de la liste des fuites…</p>}
+          {catalog === null && (
+            <p className="muted">{t('Chargement de la liste des fuites…', 'Loading the list of breaches…')}</p>
+          )}
 
           {unavailable && (
             <Notice tone="warn">
-              <p>La liste des fuites n'est pas disponible dans cette version du site.</p>
               <p>
-                Tu peux quand même écrire ta lettre :{' '}
-                <a href={href('/lettre', { contexte: 'violation' })}>choisis « Une entreprise a subi une fuite »</a>.
+                {t(
+                  "La liste des fuites n'est pas disponible dans cette version du site.",
+                  'The list of breaches is not available in this version of the site.',
+                )}
+              </p>
+              <p>
+                {t('Tu peux quand même écrire ta lettre : ', 'You can still write your letter: ')}
+                <a href={link('/lettre', { contexte: 'violation' })}>
+                  {t('choisis « Une entreprise a subi une fuite »', 'choose “A company suffered a breach”')}
+                </a>
+                .
               </p>
             </Notice>
           )}
@@ -409,7 +505,10 @@ function BreachFlow({ mode, catalog }: { mode: 'verifier' | 'message'; catalog: 
               {chosen.length > 0 && (
                 <div className="picked">
                   <p className="picked__title">
-                    {chosen.length} fuite{chosen.length > 1 ? 's' : ''} choisie{chosen.length > 1 ? 's' : ''}
+                    {t(
+                      `${chosen.length} fuite${chosen.length > 1 ? 's' : ''} choisie${chosen.length > 1 ? 's' : ''}`,
+                      `${chosen.length} breach${chosen.length > 1 ? 'es' : ''} chosen`,
+                    )}
                   </p>
                   <ul>
                     {chosen.map((b) => (
@@ -418,7 +517,7 @@ function BreachFlow({ mode, catalog }: { mode: 'verifier' | 'message'; catalog: 
                           type="button"
                           className="fresh__item"
                           onClick={() => toggle(b.name)}
-                          aria-label={`Retirer ${b.title}`}
+                          aria-label={t(`Retirer ${b.title}`, `Remove ${b.title}`)}
                         >
                           {b.title}
                           <Icon name="close" size={14} />
@@ -432,10 +531,15 @@ function BreachFlow({ mode, catalog }: { mode: 'verifier' | 'message'; catalog: 
                 <div className="fresh" role="status">
                   <p>
                     <strong>
-                      {fresh.length} nouvelle{fresh.length > 1 ? 's' : ''} fuite{fresh.length > 1 ? 's' : ''} française
-                      {fresh.length > 1 ? 's' : ''}
+                      {t(
+                        `${fresh.length} nouvelle${fresh.length > 1 ? 's' : ''} fuite${fresh.length > 1 ? 's' : ''} française${fresh.length > 1 ? 's' : ''}`,
+                        `${fresh.length} new French breach${fresh.length > 1 ? 'es' : ''}`,
+                      )}
                     </strong>{' '}
-                    depuis ta dernière visite, le {formatLongFr(lastVisit)} :
+                    {t(
+                      `depuis ta dernière visite, le ${formatLong(lastVisit, 'fr')} :`,
+                      `since your last visit on ${formatLong(lastVisit, 'en')}:`,
+                    )}
                   </p>
                   <ul>
                     {fresh.slice(0, 6).map((b) => (
@@ -454,26 +558,37 @@ function BreachFlow({ mode, catalog }: { mode: 'verifier' | 'message'; catalog: 
                   <>
                     <p role="status">
                       {watchNote === 'on'
-                        ? `C'est noté : à ta prochaine visite, tu verras les fuites françaises ajoutées depuis le ${formatLongFr(todayIso())}.`
-                        : 'Tu vois les fuites françaises ajoutées depuis ta dernière visite.'}
+                        ? t(
+                            `C'est noté : à ta prochaine visite, tu verras les fuites françaises ajoutées depuis le ${formatLong(todayIso(), 'fr')}.`,
+                            `Noted: on your next visit, you will see the French breaches added since ${formatLong(todayIso(), 'en')}.`,
+                          )
+                        : t(
+                            'Tu vois les fuites françaises ajoutées depuis ta dernière visite.',
+                            'You see the French breaches added since your last visit.',
+                          )}
                     </p>
                     <button type="button" className="btn btn--ghost btn--sm" onClick={stopWatching}>
-                      Ne plus me les signaler
+                      {t('Ne plus me les signaler', 'Stop showing them to me')}
                     </button>
                   </>
                 ) : (
                   <>
                     <p>
-                      À ta prochaine visite, veux-tu voir les fuites françaises ajoutées d'ici là ? ShredRGPD garde
-                      alors la date du jour dans ton navigateur, rien d'autre, et ne l'envoie nulle part.
+                      {t(
+                        "À ta prochaine visite, veux-tu voir les fuites françaises ajoutées d'ici là ? ShredRGPD garde alors la date du jour dans ton navigateur, rien d'autre, et ne l'envoie nulle part.",
+                        'On your next visit, do you want to see the French breaches added in the meantime? ShredRGPD then keeps today’s date in your browser, nothing else, and sends it nowhere.',
+                      )}
                     </p>
                     <button type="button" className="btn btn--ghost btn--sm" onClick={startWatching}>
                       <Icon name="bell" size={16} />
-                      Me signaler les nouvelles fuites
+                      {t('Me signaler les nouvelles fuites', 'Show me new breaches')}
                     </button>
                     {watchNote === 'refused' && (
                       <p className="watch__error" role="status">
-                        Ton navigateur refuse l'enregistrement (navigation privée ?) : rien n'a été gardé.
+                        {t(
+                          "Ton navigateur refuse l'enregistrement (navigation privée ?) : rien n'a été gardé.",
+                          'Your browser refuses storage (private browsing?): nothing was kept.',
+                        )}
                       </p>
                     )}
                   </>
@@ -481,7 +596,9 @@ function BreachFlow({ mode, catalog }: { mode: 'verifier' | 'message'; catalog: 
               </div>
               <div className="field">
                 <label htmlFor={`${id}-q`}>
-                  {mode === 'message' ? "Nom de l'entreprise ou du site" : 'Nom de la fuite ou du site'}
+                  {mode === 'message'
+                    ? t("Nom de l'entreprise ou du site", 'Company or website name')
+                    : t('Nom de la fuite ou du site', 'Breach or website name')}
                 </label>
                 <input
                   id={`${id}-q`}
@@ -494,8 +611,8 @@ function BreachFlow({ mode, catalog }: { mode: 'verifier' | 'message'; catalog: 
                   }}
                   placeholder={
                     mode === 'message'
-                      ? 'Ex. le nom cité dans le message reçu'
-                      : 'Ex. le nom affiché par Have I Been Pwned'
+                      ? t('Ex. le nom cité dans le message reçu', 'E.g. the name in the message you received')
+                      : t('Ex. le nom affiché par Have I Been Pwned', 'E.g. the name shown by Have I Been Pwned')
                   }
                   autoComplete="off"
                   spellCheck={false}
@@ -503,10 +620,16 @@ function BreachFlow({ mode, catalog }: { mode: 'verifier' | 'message'; catalog: 
               </div>
               <p className="hint" aria-live="polite">
                 {query
-                  ? `${results.length} résultat${results.length > 1 ? 's' : ''}`
+                  ? t(
+                      `${results.length} résultat${results.length > 1 ? 's' : ''}`,
+                      `${results.length} result${results.length !== 1 ? 's' : ''}`,
+                    )
                   : showFrench
-                    ? 'Les fuites récentes en France. Cherche ci-dessus pour voir toutes les autres, y compris les services étrangers.'
-                    : 'Les fuites les plus récentes :'}
+                    ? t(
+                        'Les fuites récentes en France. Cherche ci-dessus pour voir toutes les autres, y compris les services étrangers.',
+                        'Recent breaches in France. Search above to see all the others, including services based abroad.',
+                      )
+                    : t('Les fuites les plus récentes :', 'The most recent breaches:')}
               </p>
               <ul className="breach-list">
                 {(expanded ? results : results.slice(0, FIRST_ROWS)).map((b) => (
@@ -521,33 +644,54 @@ function BreachFlow({ mode, catalog }: { mode: 'verifier' | 'message'; catalog: 
               {!expanded && results.length > FIRST_ROWS && (
                 <button type="button" className="btn btn--sm breach-list__more" onClick={() => setExpanded(true)}>
                   <Icon name="plus" size={16} />
-                  Afficher {results.length - FIRST_ROWS} fuite{results.length - FIRST_ROWS > 1 ? 's' : ''} de plus
+                  {t(
+                    `Afficher ${results.length - FIRST_ROWS} fuite${results.length - FIRST_ROWS > 1 ? 's' : ''} de plus`,
+                    `Show ${results.length - FIRST_ROWS} more breach${results.length - FIRST_ROWS > 1 ? 'es' : ''}`,
+                  )}
                 </button>
               )}
               {mode === 'message' && (
                 <p className="hint verify__credit">
-                  L'entreprise n'est pas dans la liste ?{' '}
-                  <a href={href('/lettre', { contexte: 'violation' })}>Écris-lui directement</a> : la lettre s'adapte à
-                  une fuite subie par l'entreprise.
+                  {t("L'entreprise n'est pas dans la liste ? ", 'The company is not in the list? ')}
+                  <a href={link('/lettre', { contexte: 'violation' })}>
+                    {t('Écris-lui directement', 'Write to it directly')}
+                  </a>
+                  {t(
+                    " : la lettre s'adapte à une fuite subie par l'entreprise.",
+                    ': the letter adapts to a breach suffered by the company.',
+                  )}
                 </p>
               )}
               <p className="hint verify__credit">
-                Liste des fuites : <ExternalLink href={HIBP_URL}>Have I Been Pwned</ExternalLink>, sous licence{' '}
+                {t('Liste des fuites : ', 'List of breaches: ')}
+                <ExternalLink href={HIBP_URL}>Have I Been Pwned</ExternalLink>
+                {t(', sous licence ', ', under the ')}
                 <ExternalLink href={HIBP_LICENSE_URL}>CC BY 4.0</ExternalLink>
-                {catalog.fetchedOn && <>, mise à jour le {formatLongFr(catalog.fetchedOn)}</>}. Ce sont des informations
-                publiques sur les fuites, pas les données fuitées. {LOGO_NOTICE}
+                {t('', ' licence')}
+                {catalog.fetchedOn &&
+                  t(
+                    `, mise à jour le ${formatLong(catalog.fetchedOn, 'fr')}`,
+                    `, updated on ${formatLong(catalog.fetchedOn, 'en')}`,
+                  )}
+                {t(
+                  '. Ce sont des informations publiques sur les fuites, pas les données fuitées. ',
+                  '. This is public information about the breaches, not the breached data. ',
+                )}
+                {logoNotice(lang)}
               </p>
             </>
           )}
 
           <div className="wizard__nav">
             {chosen.length === 0 && catalog && catalog.breaches.length > 0 && (
-              <p className="hint">Coche au moins une fuite pour voir quoi faire.</p>
+              <p className="hint">
+                {t('Coche au moins une fuite pour voir quoi faire.', 'Tick at least one breach to see what to do.')}
+              </p>
             )}
             <div className="btn-row">
               {pickStep > 1 && (
                 <button type="button" className="btn" onClick={() => goTo(pickStep - 1)}>
-                  Retour
+                  {t('Retour', 'Back')}
                 </button>
               )}
               <button
@@ -556,8 +700,12 @@ function BreachFlow({ mode, catalog }: { mode: 'verifier' | 'message'; catalog: 
                 onClick={() => goTo(last)}
                 disabled={chosen.length === 0}
               >
-                Voir quoi faire
-                {chosen.length > 0 && ` (${chosen.length} fuite${chosen.length > 1 ? 's' : ''})`}
+                {t('Voir quoi faire', 'See what to do')}
+                {chosen.length > 0 &&
+                  t(
+                    ` (${chosen.length} fuite${chosen.length > 1 ? 's' : ''})`,
+                    ` (${chosen.length} breach${chosen.length > 1 ? 'es' : ''})`,
+                  )}
                 <Icon name="arrow" size={18} />
               </button>
             </div>
@@ -569,16 +717,16 @@ function BreachFlow({ mode, catalog }: { mode: 'verifier' | 'message'; catalog: 
         <section className="card" aria-labelledby={`${id}-s3`}>
           <h2 className="card__title" id={`${id}-s3`} {...titleProps}>
             <span className="card__num">{last}</span>
-            Ce qui a fuité, et quoi faire
+            {t('Ce qui a fuité, et quoi faire', 'What leaked, and what to do')}
           </h2>
           {chosen.length === 0 ? (
-            <p className="muted">Aucune fuite cochée pour l'instant.</p>
+            <p className="muted">{t("Aucune fuite cochée pour l'instant.", 'No breach ticked yet.')}</p>
           ) : (
             <>
               <div className="chips verify__exposed">
                 {exposed.map((dc) => (
                   <span key={dc} className={`chip${RISKY.has(dc) ? ' chip--danger' : ''}`}>
-                    {dataClassLabel(dc)}
+                    {dataClassLabel(dc, lang)}
                   </span>
                 ))}
               </div>
@@ -589,12 +737,17 @@ function BreachFlow({ mode, catalog }: { mode: 'verifier' | 'message'; catalog: 
                     <Icon name="lock" />
                   </span>
                   <div>
-                    <strong>Des mots de passe font partie de ces fuites.</strong>
+                    <strong>
+                      {t('Des mots de passe font partie de ces fuites.', 'Passwords are part of these breaches.')}
+                    </strong>
                     <p>
-                      Teste ceux que tu utilises encore, sans les confier à personne, et change ceux qui sont connus.
+                      {t(
+                        'Teste ceux que tu utilises encore, sans les confier à personne, et change ceux qui sont connus.',
+                        'Test the ones you still use, without handing them to anyone, and change the ones that are known.',
+                      )}
                     </p>
-                    <a className="btn btn--primary btn--sm" href={href('/verifier', { parcours: 'mot-de-passe' })}>
-                      Tester mes mots de passe
+                    <a className="btn btn--primary btn--sm" href={link('/verifier', { parcours: 'mot-de-passe' })}>
+                      {t('Tester mes mots de passe', 'Test my passwords')}
                       <Icon name="arrow" size={16} />
                     </a>
                   </div>
@@ -609,29 +762,37 @@ function BreachFlow({ mode, catalog }: { mode: 'verifier' | 'message'; catalog: 
                     <div>
                       <strong>{b.title}</strong>
                       <span className="hint">
-                        Fuite du {formatLongFr(b.date)}
+                        {t(`Fuite du ${formatLong(b.date, 'fr')}`, `Breach of ${formatLong(b.date, 'en')}`)}
                         {breachPaths.has(b.name) && (
                           <>
                             {' · '}
-                            <a href={breachPaths.get(b.name)}>Tout savoir sur cette fuite</a>
+                            <a href={breachPaths.get(b.name)} hrefLang={t(undefined, 'fr')}>
+                              {t('Tout savoir sur cette fuite', 'All about this breach')}
+                              {lang === 'en' && <FrenchTag />}
+                            </a>
                           </>
                         )}
                       </span>
                     </div>
                     <div className="btn-row">
-                      <a className="btn btn--primary btn--sm" href={href('/lettre', breachLetterQuery(b, 'acces'))}>
-                        Demander ce qui a fuité
+                      <a
+                        className="btn btn--primary btn--sm"
+                        href={link('/lettre', breachLetterQuery(b, 'acces', lang))}
+                      >
+                        {t('Demander ce qui a fuité', 'Ask what leaked')}
                       </a>
-                      <a className="btn btn--sm" href={href('/lettre', breachLetterQuery(b, 'effacement'))}>
-                        Demander l'effacement
+                      <a className="btn btn--sm" href={link('/lettre', breachLetterQuery(b, 'effacement', lang))}>
+                        {t("Demander l'effacement", 'Request erasure')}
                       </a>
                     </div>
                   </li>
                 ))}
               </ul>
               <p className="hint">
-                « Demander ce qui a fuité » s'appuie sur les articles 15 et 34 du RGPD : l'entreprise doit te dire
-                quelles données te concernent et ce qu'elle a fait. Les lettres sont des modèles indicatifs.
+                {t(
+                  "« Demander ce qui a fuité » s'appuie sur les articles 15 et 34 du RGPD : l'entreprise doit te dire quelles données te concernent et ce qu'elle a fait. Les lettres sont des modèles indicatifs.",
+                  '“Ask what leaked” relies on Articles 15 and 34 of the GDPR: the company must tell you which data concern you and what it has done. The letters are indicative templates.',
+                )}
               </p>
               {chosen.length > 1 && <BatchLetters breaches={chosen} />}
             </>
@@ -639,7 +800,7 @@ function BreachFlow({ mode, catalog }: { mode: 'verifier' | 'message'; catalog: 
           <div className="wizard__nav">
             <div className="btn-row">
               <button type="button" className="btn" onClick={() => goTo(pickStep)}>
-                Retour aux fuites
+                {t('Retour aux fuites', 'Back to the breaches')}
               </button>
             </div>
           </div>
@@ -651,6 +812,7 @@ function BreachFlow({ mode, catalog }: { mode: 'verifier' | 'message'; catalog: 
 
 /** Parcours « mot de passe » : fonctionnement visible, test, générateur et bons réflexes. */
 function PasswordFlow() {
+  const { t, link } = useI18n();
   return (
     <div className="password-flow">
       <section className="card" aria-labelledby="mdp-comment">
@@ -658,30 +820,43 @@ function PasswordFlow() {
           <span className="card__num">
             <Icon name="shield" size={14} />
           </span>
-          Ton mot de passe ne quitte jamais ton appareil
+          {t('Ton mot de passe ne quitte jamais ton appareil', 'Your password never leaves your device')}
         </h2>
         <ol className="how-pw">
           <li>
             <span className="how-pw__icon" aria-hidden="true">
               <Icon name="lock" />
             </span>
-            <strong>Empreinte calculée ici</strong>
-            <span>Ton navigateur transforme le mot de passe en empreinte SHA-1.</span>
+            <strong>{t('Empreinte calculée ici', 'Hash computed here')}</strong>
+            <span>
+              {t(
+                'Ton navigateur transforme le mot de passe en empreinte SHA-1.',
+                'Your browser turns the password into a SHA-1 hash.',
+              )}
+            </span>
           </li>
           <li>
             <span className="how-pw__icon" aria-hidden="true">
               <Icon name="send" />
             </span>
-            <strong>5 caractères envoyés</strong>
-            <span>Seul le début de l'empreinte part vers Pwned Passwords, jamais le mot de passe.</span>
+            <strong>{t('5 caractères envoyés', '5 characters sent')}</strong>
+            <span>
+              {t(
+                "Seul le début de l'empreinte part vers Pwned Passwords, jamais le mot de passe.",
+                'Only the start of the hash goes to Pwned Passwords, never the password.',
+              )}
+            </span>
           </li>
           <li>
             <span className="how-pw__icon" aria-hidden="true">
               <Icon name="check" />
             </span>
-            <strong>Comparaison chez toi</strong>
+            <strong>{t('Comparaison chez toi', 'Compared on your device')}</strong>
             <span>
-              Le service renvoie des centaines d'empreintes ; ShredRGPD cherche la tienne dans ton navigateur.
+              {t(
+                "Le service renvoie des centaines d'empreintes ; ShredRGPD cherche la tienne dans ton navigateur.",
+                'The service returns hundreds of hashes; ShredRGPD looks for yours in your browser.',
+              )}
             </span>
           </li>
         </ol>
@@ -697,25 +872,37 @@ function PasswordFlow() {
           <span className="card__num">
             <Icon name="check" size={14} />
           </span>
-          Les bons réflexes
+          {t('Les bons réflexes', 'Good habits')}
         </h2>
         <ul className="checklist">
           <li>
             <Icon name="check" size={18} />
-            Un mot de passe apparaît dans une fuite ? Change-le partout où il sert, en commençant par ta messagerie.
+            {t(
+              'Un mot de passe apparaît dans une fuite ? Change-le partout où il sert, en commençant par ta messagerie.',
+              'A password appears in a breach? Change it everywhere it is used, starting with your email account.',
+            )}
           </li>
           <li>
             <Icon name="check" size={18} />
-            Un mot de passe différent par site : un gestionnaire de mots de passe les retient pour toi.
+            {t(
+              'Un mot de passe différent par site : un gestionnaire de mots de passe les retient pour toi.',
+              'A different password for each website: a password manager remembers them for you.',
+            )}
           </li>
           <li>
             <Icon name="check" size={18} />
-            Active la double authentification sur ta messagerie, ta banque et tes réseaux sociaux.
+            {t(
+              'Active la double authentification sur ta messagerie, ta banque et tes réseaux sociaux.',
+              'Turn on two-factor authentication for your email, your bank and your social networks.',
+            )}
           </li>
         </ul>
         <p className="hint">
-          Tu veux savoir quels sites ont laissé fuiter tes données ?{' '}
-          <a href={href('/verifier')}>Vérifie ton adresse e-mail</a>.
+          {t(
+            'Tu veux savoir quels sites ont laissé fuiter tes données ? ',
+            'Want to know which websites leaked your data? ',
+          )}
+          <a href={link('/verifier')}>{t('Vérifie ton adresse e-mail', 'Check your email address')}</a>.
         </p>
       </section>
     </div>
@@ -724,10 +911,11 @@ function PasswordFlow() {
 
 export function Verify() {
   const id = useId();
+  const { t, lang, link, frenchOnly } = useI18n();
   const route = useRoute();
   const situation = asSituation(route.query.get('parcours'));
   const setSituation = (value: Situation) =>
-    navigate(href('/verifier', value === 'verifier' ? undefined : { parcours: value }), { replace: true });
+    navigate(link('/verifier', value === 'verifier' ? undefined : { parcours: value }), { replace: true });
   const [catalog, setCatalog] = useState<BreachCatalog | null>(null);
 
   useEffect(() => {
@@ -743,17 +931,22 @@ export function Verify() {
   return (
     <>
       <PageHead
-        eyebrow="Vérifier"
-        command={{ input: 'shredrgpd verifier --email ••••••', output: 'aucune donnée envoyée à ShredRGPD' }}
-        title="Qu'est-ce qui a fuité ?"
+        eyebrow={t('Vérifier', 'Check')}
+        command={{
+          input: t('shredrgpd verifier --email ••••••', 'shredrgpd check --email ••••••'),
+          output: t('aucune donnée envoyée à ShredRGPD', 'no data sent to ShredRGPD'),
+        }}
+        title={t("Qu'est-ce qui a fuité ?", 'What leaked?')}
       >
-        Vérifie ton adresse e-mail ou un mot de passe, vois quelles données sont exposées, puis écris à l'entreprise en
-        un clic. Rien de ce que tu vérifies ne passe par ShredRGPD.
+        {t(
+          "Vérifie ton adresse e-mail ou un mot de passe, vois quelles données sont exposées, puis écris à l'entreprise en un clic. Rien de ce que tu vérifies ne passe par ShredRGPD.",
+          'Check your email address or a password, see which data were exposed, then write to the company in one click. Nothing you check goes through ShredRGPD.',
+        )}
       </PageHead>
 
       <div className="container page-body verify-page">
         <fieldset className="situation">
-          <legend className="situation__legend">Que veux-tu vérifier ?</legend>
+          <legend className="situation__legend">{t('Que veux-tu vérifier ?', 'What do you want to check?')}</legend>
           <div className="choices">
             {SITUATIONS.map((s) => (
               <label key={s.value} className="choice">
@@ -767,8 +960,8 @@ export function Verify() {
                 <span className="choice__icon" aria-hidden="true">
                   <Icon name={s.icon} />
                 </span>
-                <strong>{s.label}</strong>
-                <span className="choice__hint">{s.hint}</span>
+                <strong>{s[lang][0]}</strong>
+                <span className="choice__hint">{s[lang][1]}</span>
               </label>
             ))}
           </div>
@@ -784,23 +977,31 @@ export function Verify() {
           <section className="card" aria-labelledby={`${id}-pub`}>
             <h2 className="card__title" id={`${id}-pub`}>
               <span className="card__num">1</span>
-              Fais retirer les données publiées
+              {t('Fais retirer les données publiées', 'Get the published data removed')}
             </h2>
             <p className="muted">
-              Écris d'abord au site qui publie tes données pour demander leur effacement. S'il ne répond pas ou reste
-              introuvable, signale la page à son hébergeur : il doit agir sur un signalement précis.
+              {t(
+                "Écris d'abord au site qui publie tes données pour demander leur effacement. S'il ne répond pas ou reste introuvable, signale la page à son hébergeur : il doit agir sur un signalement précis.",
+                'First write to the website that publishes your data to request their erasure. If it does not reply or cannot be found, report the page to its hosting provider: it must act on a precise notice.',
+              )}
             </p>
             <div className="btn-row">
-              <a className="btn btn--primary" href={href('/lettre', { type: 'effacement', contexte: 'exposition' })}>
-                Écrire au site
+              <a className="btn btn--primary" href={link('/lettre', { type: 'effacement', contexte: 'exposition' })}>
+                {t('Écrire au site', 'Write to the website')}
               </a>
-              <a className="btn" href={href('/lettre', { type: 'signalement' })}>
-                Signaler à l'hébergeur
+              <a className="btn" href={link('/lettre', { type: 'signalement' })}>
+                {t("Signaler à l'hébergeur", 'Report to the hosting provider')}
               </a>
             </div>
             <p className="hint verify__credit">
-              Garde des preuves avant tout : captures d'écran datées et adresse exacte des pages. Les démarches selon la
-              donnée exposée sont sur la page <a href={href('/que-faire')}>Que faire ?</a>
+              {t(
+                "Garde des preuves avant tout : captures d'écran datées et adresse exacte des pages. Les démarches selon la donnée exposée sont sur la page ",
+                'Keep evidence first: dated screenshots and the exact address of the pages. The steps for each type of exposed data are on the page ',
+              )}
+              <a href={link('/que-faire')}>
+                {t('Que faire ?', 'What to do?')}
+                {frenchOnly('/que-faire') && <FrenchTag />}
+              </a>
             </p>
           </section>
         )}

@@ -5,19 +5,27 @@ import { ExternalLink } from '../components/ExternalLink';
 import { Icon } from '../components/Icon';
 import { Notice } from '../components/Notice';
 import { PageHead } from '../components/PageHead';
-import { formatLongFr, gdprDeadlines, isValidIsoDate, todayIso, type IsoDate } from '../lib/dates';
+import { LetterLanguage } from '../components/LetterLanguage';
+import { FrenchTag, useI18n } from '../i18n';
+import { translateDataList } from '../lib/breaches';
+import { formatLong, gdprDeadlines, isValidIsoDate, todayIso, type IsoDate } from '../lib/dates';
+import type { Lang } from '../lib/lang';
 import {
+  CONTEXT_LABELS,
+  CONTEXT_LABELS_EN,
   DATA_CATEGORIES,
+  dataCategoryLabel,
   generateLetter,
   INITIAL_KINDS,
   isInitialKind,
+  kindLabel,
   LetterInputError,
   letterToText,
   mailtoHref,
+  subjectLabel,
   type DataCategory,
   type InitialKind,
   type Letter,
-  CONTEXT_LABELS,
   type LetterContext,
   type ReportTarget,
   type LetterKind,
@@ -26,7 +34,7 @@ import { CLOUDFLARE_ABUSE_URL, extractDomain, icannLookupUrl } from '../lib/doma
 import { parseCategories } from '../lib/letterLink';
 import { slugify } from '../lib/slug';
 import { newId, withLetter, type TrackedRequest } from '../lib/tracking';
-import { href, type Route } from '../router';
+import type { Route } from '../router';
 import { useTracking } from '../useTracking';
 
 interface FormState {
@@ -48,20 +56,25 @@ interface FormState {
   reportTarget: ReportTarget;
 }
 
-const KIND_OPTIONS: { value: LetterKind; label: string; hint: string }[] = [
-  { value: 'effacement', label: 'Effacement', hint: 'Article 17' },
-  { value: 'acces', label: 'Accès', hint: 'Article 15' },
-  { value: 'opposition', label: 'Opposition', hint: 'Prospection, art. 21' },
-  { value: 'fermeture', label: 'Fermer un compte', hint: 'Article 17' },
-  { value: 'relance', label: 'Relance', hint: 'Après un mois' },
-  { value: 'signalement', label: 'Signalement', hint: 'Hébergeur, registrar' },
+const KIND_OPTIONS: { value: LetterKind; fr: [string, string]; en: [string, string] }[] = [
+  { value: 'effacement', fr: ['Effacement', 'Article 17'], en: ['Erasure', 'Article 17'] },
+  { value: 'acces', fr: ['Accès', 'Article 15'], en: ['Access', 'Article 15'] },
+  { value: 'opposition', fr: ['Opposition', 'Prospection, art. 21'], en: ['Objection', 'Marketing, art. 21'] },
+  { value: 'fermeture', fr: ['Fermer un compte', 'Article 17'], en: ['Close an account', 'Article 17'] },
+  { value: 'relance', fr: ['Relance', 'Après un mois'], en: ['Reminder', 'After one month'] },
+  { value: 'signalement', fr: ['Signalement', 'Hébergeur, registrar'], en: ['Notice', 'Host, registrar'] },
 ];
 
-const TARGET_OPTIONS: { value: ReportTarget; label: string }[] = [
-  { value: 'hebergeur', label: "L'hébergeur du site" },
-  { value: 'registrar', label: 'Le registrar du nom de domaine' },
-  { value: 'cloudflare', label: 'Cloudflare' },
+const TARGET_OPTIONS: { value: ReportTarget; fr: string; en: string }[] = [
+  { value: 'hebergeur', fr: "L'hébergeur du site", en: 'The website’s hosting provider' },
+  { value: 'registrar', fr: 'Le registrar du nom de domaine', en: 'The domain name registrar' },
+  { value: 'cloudflare', fr: 'Cloudflare', en: 'Cloudflare' },
 ];
+
+/** Repère d'article affiché en puce : « 6 RGPD » devient « 6 GDPR » pour une lettre en anglais. */
+function articleChip(article: string, lang: Lang): string {
+  return lang === 'en' ? article.replace(' RGPD', ' GDPR') : article;
+}
 
 function asKind(value: string | null): LetterKind {
   if (isInitialKind(value) || value === 'relance' || value === 'signalement') return value;
@@ -100,12 +113,12 @@ type Feedback = { tone: 'ok' | 'warn'; text: string } | null;
 /** Étapes du formulaire, une à la fois. */
 type Step = 1 | 2 | 3 | 4 | 5;
 
-const STEPS: { n: Step; label: string }[] = [
-  { n: 1, label: 'Type de demande' },
-  { n: 2, label: 'Le site' },
-  { n: 3, label: 'Ce qui a fuité' },
-  { n: 4, label: 'Toi' },
-  { n: 5, label: 'Ta lettre' },
+const STEPS: { n: Step; label: string; en: string }[] = [
+  { n: 1, label: 'Type de demande', en: 'Type of request' },
+  { n: 2, label: 'Le site', en: 'The website' },
+  { n: 3, label: 'Ce qui a fuité', en: 'What leaked' },
+  { n: 4, label: 'Toi', en: 'You' },
+  { n: 5, label: 'Ta lettre', en: 'Your letter' },
 ];
 
 /**
@@ -119,7 +132,10 @@ function firstStep(route: Route): Step {
 }
 
 export function Generator({ route }: { route: Route }) {
+  const { t, lang, link, frenchOnly } = useI18n();
   const [form, setForm] = useState<FormState>(() => initialState(route));
+  /** Langue de la lettre, distincte de celle de la page (français par défaut). */
+  const [letterLang, setLetterLang] = useState<Lang>('fr');
   const [step, setStep] = useState<Step>(() => firstStep(route));
   /** Étape la plus avancée atteinte : on peut revenir en arrière ou y retourner d'un clic. */
   const [reached, setReached] = useState<Step>(() => firstStep(route));
@@ -156,43 +172,52 @@ export function Generator({ route }: { route: Route }) {
 
   const result = useMemo((): { letter: Letter | null; missing: string[] } => {
     const missing: string[] = [];
-    if (!form.fullName.trim()) missing.push('ton nom');
+    if (!form.fullName.trim()) missing.push(t('ton nom', 'your name'));
     if (!form.siteName.trim())
       missing.push(
-        form.context === 'violation' && form.kind !== 'signalement' ? "le nom de l'entreprise" : 'le site concerné',
+        form.context === 'violation' && form.kind !== 'signalement'
+          ? t("le nom de l'entreprise", 'the company name')
+          : t('le site concerné', 'the website concerned'),
       );
     if (form.kind === 'relance' && !isValidIsoDate(form.previousRequestDate))
-      missing.push('la date de ta première demande');
-    if (!isValidIsoDate(form.date)) missing.push('la date de la lettre');
+      missing.push(t('la date de ta première demande', 'the date of your first request'));
+    if (!isValidIsoDate(form.date)) missing.push(t('la date de la lettre', 'the date of the letter'));
     if (form.kind === 'signalement') {
-      if (!form.urls.split('\n').some((u) => u.trim())) missing.push("l'adresse d'au moins une page");
-      if (!form.email.trim()) missing.push('ton adresse e-mail');
+      if (!form.urls.split('\n').some((u) => u.trim()))
+        missing.push(t("l'adresse d'au moins une page", 'the address of at least one page'));
+      if (!form.email.trim()) missing.push(t('ton adresse e-mail', 'your email address'));
     }
     if (missing.length > 0) return { letter: null, missing };
     try {
-      const letter = generateLetter({
-        kind: form.kind,
-        fullName: form.fullName,
-        email: form.email,
-        postalAddress: form.postalAddress,
-        siteName: form.kind === 'signalement' ? (extractDomain(form.siteName) ?? form.siteName) : form.siteName,
-        urls: form.urls.split('\n'),
-        dataCategories: form.dataCategories,
-        otherData: form.otherData,
-        date: form.date,
-        previousRequestDate: form.kind === 'relance' ? form.previousRequestDate : undefined,
-        previousKind: form.kind === 'relance' ? form.previousKind : undefined,
-        context: form.kind === 'signalement' ? 'exposition' : form.context,
-        reportTarget: form.reportTarget,
-        breachName: form.context === 'violation' && form.kind !== 'signalement' ? form.breachName : undefined,
-        breachDate: form.context === 'violation' && isValidIsoDate(form.breachDate) ? form.breachDate : undefined,
-      });
+      const letter = generateLetter(
+        {
+          kind: form.kind,
+          fullName: form.fullName,
+          email: form.email,
+          postalAddress: form.postalAddress,
+          siteName: form.kind === 'signalement' ? (extractDomain(form.siteName) ?? form.siteName) : form.siteName,
+          urls: form.urls.split('\n'),
+          dataCategories: form.dataCategories,
+          // Les types de données repris d'une fuite suivent la langue de la lettre ; le reste est gardé tel quel.
+          otherData: translateDataList(form.otherData, letterLang),
+          date: form.date,
+          previousRequestDate: form.kind === 'relance' ? form.previousRequestDate : undefined,
+          previousKind: form.kind === 'relance' ? form.previousKind : undefined,
+          context: form.kind === 'signalement' ? 'exposition' : form.context,
+          reportTarget: form.reportTarget,
+          breachName: form.context === 'violation' && form.kind !== 'signalement' ? form.breachName : undefined,
+          breachDate: form.context === 'violation' && isValidIsoDate(form.breachDate) ? form.breachDate : undefined,
+        },
+        letterLang,
+      );
       return { letter, missing };
     } catch (error) {
       if (error instanceof LetterInputError) return { letter: null, missing: [error.message] };
       throw error;
     }
-  }, [form]);
+    // t ne dépend que de la langue de la page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, letterLang, lang]);
 
   const { letter } = result;
   const relanceTooEarly =
@@ -207,8 +232,20 @@ export function Generator({ route }: { route: Route }) {
     if (ok) setBurst((n) => n + 1);
     setFeedback(
       ok
-        ? { tone: 'ok', text: 'Lettre copiée. Colle-la dans ton e-mail ou dans le formulaire du site.' }
-        : { tone: 'warn', text: 'La copie a échoué. Sélectionne le texte de la lettre à la main.' },
+        ? {
+            tone: 'ok',
+            text: t(
+              'Lettre copiée. Colle-la dans ton e-mail ou dans le formulaire du site.',
+              'Letter copied. Paste it into your email or into the website’s form.',
+            ),
+          }
+        : {
+            tone: 'warn',
+            text: t(
+              'La copie a échoué. Sélectionne le texte de la lettre à la main.',
+              'Copying failed. Select the text of the letter by hand.',
+            ),
+          },
     );
   };
 
@@ -228,7 +265,13 @@ export function Generator({ route }: { route: Route }) {
           r.id === tracked.id ? { ...(keepCopy ? withLetter(r, copy) : r), status: 'relancee' as const } : r,
         ),
       );
-      setFeedback({ tone: 'ok', text: 'La demande est marquée comme relancée dans ton suivi.' });
+      setFeedback({
+        tone: 'ok',
+        text: t(
+          'La demande est marquée comme relancée dans ton suivi.',
+          'The request is marked as followed up in your tracker.',
+        ),
+      });
       return;
     }
     const request: TrackedRequest = {
@@ -244,7 +287,10 @@ export function Generator({ route }: { route: Route }) {
     update((list) => [...list, keepCopy ? withLetter(request, copy) : request]);
     setFeedback({
       tone: 'ok',
-      text: `Ajoutée au suivi. Échéance de réponse : ${formatLongFr(gdprDeadlines(form.date).standard)}.`,
+      text: t(
+        `Ajoutée au suivi. Échéance de réponse : ${formatLong(gdprDeadlines(form.date).standard, 'fr')}.`,
+        `Added to the tracker. Reply deadline: ${formatLong(gdprDeadlines(form.date).standard, 'en')}.`,
+      ),
     });
   };
 
@@ -256,14 +302,17 @@ export function Generator({ route }: { route: Route }) {
   const missingAt = (n: Step): string[] => {
     const missing: string[] = [];
     if (n === 1 && form.kind === 'relance' && !isValidIsoDate(form.previousRequestDate))
-      missing.push('la date de ta première demande');
-    if (n === 2 && !form.siteName.trim()) missing.push(violation ? "le nom de l'entreprise" : 'le site concerné');
+      missing.push(t('la date de ta première demande', 'the date of your first request'));
+    if (n === 2 && !form.siteName.trim())
+      missing.push(
+        violation ? t("le nom de l'entreprise", 'the company name') : t('le site concerné', 'the website concerned'),
+      );
     if (n === 3 && isReport && !form.urls.split('\n').some((u) => u.trim()))
-      missing.push("l'adresse d'au moins une page");
+      missing.push(t("l'adresse d'au moins une page", 'the address of at least one page'));
     if (n === 4) {
-      if (!form.fullName.trim()) missing.push('ton nom');
-      if (isReport && !form.email.trim()) missing.push('ton adresse e-mail');
-      if (!isValidIsoDate(form.date)) missing.push('la date de la lettre');
+      if (!form.fullName.trim()) missing.push(t('ton nom', 'your name'));
+      if (isReport && !form.email.trim()) missing.push(t('ton adresse e-mail', 'your email address'));
+      if (!isValidIsoDate(form.date)) missing.push(t('la date de la lettre', 'the date of the letter'));
     }
     return missing;
   };
@@ -298,18 +347,19 @@ export function Generator({ route }: { route: Route }) {
     <div className="wizard__nav">
       {stepError.length > 0 && (
         <p className="wizard__error" role="alert">
-          Pour continuer, indique {stepError.join(', ')}.
+          {t('Pour continuer, indique ', 'To continue, enter ')}
+          {stepError.join(', ')}.
         </p>
       )}
       <div className="btn-row">
         {step > 1 && (
           <button type="button" className="btn" onClick={() => goTo((step - 1) as Step)}>
-            Retour
+            {t('Retour', 'Back')}
           </button>
         )}
         {step < 5 && (
           <button type="submit" className="btn btn--primary">
-            {step === 4 ? 'Voir ma lettre' : 'Continuer'}
+            {step === 4 ? t('Voir ma lettre', 'See my letter') : t('Continuer', 'Continue')}
             <Icon name="arrow" size={18} />
           </button>
         )}
@@ -321,17 +371,22 @@ export function Generator({ route }: { route: Route }) {
   return (
     <>
       <PageHead
-        eyebrow="Générateur"
-        command={{ input: 'shredrgpd lettre --rgpd art.17', output: "modèle prêt · rien n'est envoyé" }}
-        title="Écris ta lettre"
+        eyebrow={t('Générateur', 'Generator')}
+        command={{
+          input: t('shredrgpd lettre --rgpd art.17', 'shredrgpd letter --gdpr art.17'),
+          output: t("modèle prêt · rien n'est envoyé", 'template ready · nothing is sent'),
+        }}
+        title={t('Écris ta lettre', 'Write your letter')}
       >
-        Cinq étapes courtes : le type de demande, le site, ce qui a fuité, toi, puis ta lettre prête à envoyer. Rien
-        n'est envoyé, rien n'est enregistré tant que tu ne l'ajoutes pas au suivi.
+        {t(
+          "Cinq étapes courtes : le type de demande, le site, ce qui a fuité, toi, puis ta lettre prête à envoyer. Rien n'est envoyé, rien n'est enregistré tant que tu ne l'ajoutes pas au suivi.",
+          'Five short steps: the type of request, the website, what leaked, you, then your letter ready to send, in English or French. Nothing is sent, nothing is stored unless you add it to the tracker.',
+        )}
       </PageHead>
 
       <div className="container page-body">
         <div className="wizard" id={fieldId('wizard')}>
-          <nav aria-label="Étapes de la lettre">
+          <nav aria-label={t('Étapes de la lettre', 'Letter steps')}>
             <ol className="stepper">
               {STEPS.map((st) => (
                 <li key={st.n} data-state={st.n === step ? 'current' : st.n <= reached ? 'done' : 'todo'}>
@@ -344,13 +399,13 @@ export function Generator({ route }: { route: Route }) {
                     <span className="stepper__num" aria-hidden="true">
                       {st.n < step && st.n <= reached ? <Icon name="check" size={14} /> : st.n}
                     </span>
-                    <span className="stepper__label">{st.label}</span>
+                    <span className="stepper__label">{t(st.label, st.en)}</span>
                   </button>
                 </li>
               ))}
             </ol>
             <p className="stepper__compact" aria-hidden="true">
-              Étape {step} sur 5 · {STEPS[step - 1]!.label}
+              {t(`Étape ${step} sur 5`, `Step ${step} of 5`)} · {t(STEPS[step - 1]!.label, STEPS[step - 1]!.en)}
             </p>
           </nav>
 
@@ -367,10 +422,10 @@ export function Generator({ route }: { route: Route }) {
                 <section className="card" aria-labelledby={fieldId('t1')}>
                   <h2 className="card__title" id={fieldId('t1')} ref={stepHeading} tabIndex={-1}>
                     <span className="card__num">1</span>
-                    Quel type de demande ?
+                    {t('Quel type de demande ?', 'What type of request?')}
                   </h2>
                   <fieldset>
-                    <legend className="visually-hidden">Type de demande</legend>
+                    <legend className="visually-hidden">{t('Type de demande', 'Type of request')}</legend>
                     <div className="segmented">
                       {KIND_OPTIONS.map((option) => (
                         <label key={option.value}>
@@ -381,8 +436,8 @@ export function Generator({ route }: { route: Route }) {
                             checked={form.kind === option.value}
                             onChange={set('kind')}
                           />
-                          <strong>{option.label}</strong>
-                          <span>{option.hint}</span>
+                          <strong>{option[lang][0]}</strong>
+                          <span>{option[lang][1]}</span>
                         </label>
                       ))}
                     </div>
@@ -390,16 +445,19 @@ export function Generator({ route }: { route: Route }) {
 
                   {(form.kind === 'effacement' || form.kind === 'fermeture') && (
                     <p className="hint">
-                      L'effacement n'est pas automatique : il faut l'un des motifs de l'article 17.1 (données plus
-                      nécessaires, consentement retiré, traitement illicite…). Selon ta situation, certaines données
-                      peuvent devoir être conservées pour respecter une obligation légale (article 17.3 b).
+                      {t(
+                        "L'effacement n'est pas automatique : il faut l'un des motifs de l'article 17.1 (données plus nécessaires, consentement retiré, traitement illicite…). Selon ta situation, certaines données peuvent devoir être conservées pour respecter une obligation légale (article 17.3 b).",
+                        'Erasure is not automatic: one of the grounds of Article 17(1) must apply (data no longer necessary, consent withdrawn, unlawful processing…). Depending on your situation, some data may have to be kept to comply with a legal obligation (Article 17(3)(b)).',
+                      )}
                     </p>
                   )}
 
                   {form.kind === 'relance' && (
                     <div className="field-row">
                       <div className="field">
-                        <label htmlFor={fieldId('prevDate')}>Date de ta première demande</label>
+                        <label htmlFor={fieldId('prevDate')}>
+                          {t('Date de ta première demande', 'Date of your first request')}
+                        </label>
                         <input
                           id={fieldId('prevDate')}
                           className="input"
@@ -410,7 +468,9 @@ export function Generator({ route }: { route: Route }) {
                         />
                       </div>
                       <div className="field">
-                        <label htmlFor={fieldId('prevKind')}>Nature de la première demande</label>
+                        <label htmlFor={fieldId('prevKind')}>
+                          {t('Nature de la première demande', 'Type of the first request')}
+                        </label>
                         <select
                           id={fieldId('prevKind')}
                           className="select"
@@ -419,7 +479,7 @@ export function Generator({ route }: { route: Route }) {
                         >
                           {(Object.keys(INITIAL_KINDS) as InitialKind[]).map((k) => (
                             <option key={k} value={k}>
-                              {INITIAL_KINDS[k].label}
+                              {kindLabel(k, lang)}
                             </option>
                           ))}
                         </select>
@@ -433,11 +493,15 @@ export function Generator({ route }: { route: Route }) {
                 <section className="card" aria-labelledby={fieldId('t2')}>
                   <h2 className="card__title" id={fieldId('t2')} ref={stepHeading} tabIndex={-1}>
                     <span className="card__num">2</span>
-                    {isReport ? 'Le site et le destinataire' : 'Le site ou l’entreprise'}
+                    {isReport
+                      ? t('Le site et le destinataire', 'The website and the recipient')
+                      : t('Le site ou l’entreprise', 'The website or the company')}
                   </h2>
                   {isReport ? (
                     <div className="field">
-                      <label htmlFor={fieldId('target')}>Destinataire du signalement</label>
+                      <label htmlFor={fieldId('target')}>
+                        {t('Destinataire du signalement', 'Recipient of the notice')}
+                      </label>
                       <select
                         id={fieldId('target')}
                         className="select"
@@ -446,18 +510,18 @@ export function Generator({ route }: { route: Route }) {
                       >
                         {TARGET_OPTIONS.map((o) => (
                           <option key={o.value} value={o.value}>
-                            {o.label}
+                            {t(o.fr, o.en)}
                           </option>
                         ))}
                       </select>
                     </div>
                   ) : (
                     <div className="field">
-                      <label htmlFor={fieldId('context')}>Situation</label>
+                      <label htmlFor={fieldId('context')}>{t('Situation', 'Situation')}</label>
                       <select id={fieldId('context')} className="select" value={form.context} onChange={set('context')}>
                         {(Object.keys(CONTEXT_LABELS) as LetterContext[]).map((c) => (
                           <option key={c} value={c}>
-                            {CONTEXT_LABELS[c].label}
+                            {(lang === 'en' ? CONTEXT_LABELS_EN : CONTEXT_LABELS)[c].label}
                           </option>
                         ))}
                       </select>
@@ -465,14 +529,16 @@ export function Generator({ route }: { route: Route }) {
                   )}
                   <div className="field">
                     <label htmlFor={fieldId('site')}>
-                      {violation ? "Nom de l'entreprise" : 'Nom ou adresse du site'}
+                      {violation
+                        ? t("Nom de l'entreprise", 'Company name')
+                        : t('Nom ou adresse du site', 'Website name or address')}
                     </label>
                     <input
                       id={fieldId('site')}
                       className="input"
                       value={form.siteName}
                       onChange={set('siteName')}
-                      placeholder="exemple.com"
+                      placeholder={t('exemple.com', 'example.com')}
                       autoComplete="off"
                       spellCheck={false}
                     />
@@ -481,7 +547,8 @@ export function Generator({ route }: { route: Route }) {
                     <div className="field-row">
                       <div className="field">
                         <label htmlFor={fieldId('breachName')}>
-                          Nom de la fuite <span className="optional">(facultatif)</span>
+                          {t('Nom de la fuite', 'Breach name')}{' '}
+                          <span className="optional">{t('(facultatif)', '(optional)')}</span>
                         </label>
                         <input
                           id={fieldId('breachName')}
@@ -493,7 +560,8 @@ export function Generator({ route }: { route: Route }) {
                       </div>
                       <div className="field">
                         <label htmlFor={fieldId('breachDate')}>
-                          Date de la fuite <span className="optional">(facultatif)</span>
+                          {t('Date de la fuite', 'Breach date')}{' '}
+                          <span className="optional">{t('(facultatif)', '(optional)')}</span>
                         </label>
                         <input
                           id={fieldId('breachDate')}
@@ -507,8 +575,10 @@ export function Generator({ route }: { route: Route }) {
                   )}
                   <div className="field">
                     <label htmlFor={fieldId('contact')}>
-                      {isReport ? "E-mail d'abus du destinataire" : 'E-mail du DPO ou du responsable'}{' '}
-                      <span className="optional">(facultatif)</span>
+                      {isReport
+                        ? t("E-mail d'abus du destinataire", 'Abuse email of the recipient')
+                        : t('E-mail du DPO ou du responsable', 'Email of the DPO or the controller')}{' '}
+                      <span className="optional">{t('(facultatif)', '(optional)')}</span>
                     </label>
                     <input
                       id={fieldId('contact')}
@@ -516,48 +586,70 @@ export function Generator({ route }: { route: Route }) {
                       type="email"
                       value={form.contact}
                       onChange={set('contact')}
-                      placeholder="dpo@exemple.com"
+                      placeholder={t('dpo@exemple.com', 'dpo@example.com')}
                       autoComplete="off"
                       spellCheck={false}
                       aria-describedby={fieldId('contactHint')}
                     />
                     <p className="hint" id={fieldId('contactHint')}>
                       {isReport
-                        ? 'Souvent de la forme abuse@… Il sert seulement à préremplir ton e-mail.'
-                        : 'Cherche-le dans les mentions légales ou la politique de confidentialité du site. Il sert seulement à préremplir ton e-mail.'}
+                        ? t(
+                            'Souvent de la forme abuse@… Il sert seulement à préremplir ton e-mail.',
+                            'Often of the form abuse@… It is only used to pre-fill your email.',
+                          )
+                        : t(
+                            'Cherche-le dans les mentions légales ou la politique de confidentialité du site. Il sert seulement à préremplir ton e-mail.',
+                            'Look for it in the website’s legal notice or privacy policy. It is only used to pre-fill your email.',
+                          )}
                     </p>
                   </div>
                   {!violation && (
                     <div className="finder">
                       <p className="finder__title">
                         <Icon name="search" size={16} />
-                        Trouver le bon contact
+                        {t('Trouver le bon contact', 'Find the right contact')}
                       </p>
                       <ul>
                         {!isReport && (
                           <li>
-                            Le responsable du site : ses mentions légales ou sa politique de confidentialité (lien en
-                            bas de page, souvent).
+                            {t(
+                              'Le responsable du site : ses mentions légales ou sa politique de confidentialité (lien en bas de page, souvent).',
+                              'The website’s controller: its legal notice or privacy policy (often linked at the bottom of the page).',
+                            )}
                           </li>
                         )}
                         <li>
-                          Le registrar et son e-mail d'abus :{' '}
+                          {t("Le registrar et son e-mail d'abus : ", 'The registrar and its abuse email: ')}
                           {domain ? (
-                            <ExternalLink href={icannLookupUrl(domain)}>recherche ICANN pour {domain}</ExternalLink>
+                            <ExternalLink href={icannLookupUrl(domain)}>
+                              {t(`recherche ICANN pour ${domain}`, `ICANN lookup for ${domain}`)}
+                            </ExternalLink>
                           ) : (
-                            <ExternalLink href="https://lookup.icann.org/">recherche ICANN</ExternalLink>
+                            <ExternalLink href="https://lookup.icann.org/">
+                              {t('recherche ICANN', 'ICANN lookup')}
+                            </ExternalLink>
                           )}
-                          , rubrique « Registrar » puis « Abuse contact ».
+                          {t(
+                            ', rubrique « Registrar » puis « Abuse contact ».',
+                            ', section “Registrar” then “Abuse contact”.',
+                          )}
                         </li>
                         <li>
-                          Le site passe par Cloudflare (serveurs de noms en *.ns.cloudflare.com) ? Utilise leur{' '}
-                          <ExternalLink href={CLOUDFLARE_ABUSE_URL}>formulaire d'abus</ExternalLink> : il transmet à
-                          l'hébergeur réel.
+                          {t(
+                            'Le site passe par Cloudflare (serveurs de noms en *.ns.cloudflare.com) ? Utilise leur ',
+                            'The website uses Cloudflare (name servers in *.ns.cloudflare.com)? Use their ',
+                          )}
+                          <ExternalLink href={CLOUDFLARE_ABUSE_URL}>
+                            {t("formulaire d'abus", 'abuse form')}
+                          </ExternalLink>
+                          {t(" : il transmet à l'hébergeur réel.", ': it forwards to the real hosting provider.')}
                         </li>
                         {!isReport && (
                           <li>
-                            Personne ne répond ou le site est anonyme ? Choisis « Signalement » pour écrire à
-                            l'hébergeur ou au registrar.
+                            {t(
+                              "Personne ne répond ou le site est anonyme ? Choisis « Signalement » pour écrire à l'hébergeur ou au registrar.",
+                              'Nobody replies or the website is anonymous? Choose “Notice” to write to the hosting provider or the registrar.',
+                            )}
                           </li>
                         )}
                       </ul>
@@ -570,24 +662,28 @@ export function Generator({ route }: { route: Route }) {
                 <section className="card" aria-labelledby={fieldId('t3data')}>
                   <h2 className="card__title" id={fieldId('t3data')} ref={stepHeading} tabIndex={-1}>
                     <span className="card__num">3</span>
-                    Ce qui a fuité
+                    {t('Ce qui a fuité', 'What leaked')}
                   </h2>
                   <div className="field">
                     <label htmlFor={fieldId('urls')}>
-                      Pages où tes données apparaissent{' '}
-                      <span className="optional">{isReport ? '(une par ligne)' : '(facultatif, une par ligne)'}</span>
+                      {t('Pages où tes données apparaissent', 'Pages where your data appear')}{' '}
+                      <span className="optional">
+                        {isReport
+                          ? t('(une par ligne)', '(one per line)')
+                          : t('(facultatif, une par ligne)', '(optional, one per line)')}
+                      </span>
                     </label>
                     <textarea
                       id={fieldId('urls')}
                       className="textarea"
                       value={form.urls}
                       onChange={set('urls')}
-                      placeholder="https://exemple.com/page"
+                      placeholder={t('https://exemple.com/page', 'https://example.com/page')}
                       spellCheck={false}
                     />
                   </div>
                   <fieldset>
-                    <legend className="legend">Données exposées</legend>
+                    <legend className="legend">{t('Données exposées', 'Exposed data')}</legend>
                     <div className="checks">
                       {(Object.keys(DATA_CATEGORIES) as DataCategory[]).map((key) => (
                         <label className="check" key={key}>
@@ -596,14 +692,18 @@ export function Generator({ route }: { route: Route }) {
                             checked={form.dataCategories.includes(key)}
                             onChange={() => toggleCategory(key)}
                           />
-                          <span>{DATA_CATEGORIES[key].charAt(0).toUpperCase() + DATA_CATEGORIES[key].slice(1)}</span>
+                          <span>
+                            {dataCategoryLabel(key, lang).charAt(0).toUpperCase() +
+                              dataCategoryLabel(key, lang).slice(1)}
+                          </span>
                         </label>
                       ))}
                     </div>
                   </fieldset>
                   <div className="field">
                     <label htmlFor={fieldId('other')}>
-                      Autres données <span className="optional">(facultatif)</span>
+                      {t('Autres données', 'Other data')}{' '}
+                      <span className="optional">{t('(facultatif)', '(optional)')}</span>
                     </label>
                     <input id={fieldId('other')} className="input" value={form.otherData} onChange={set('otherData')} />
                   </div>
@@ -615,10 +715,10 @@ export function Generator({ route }: { route: Route }) {
                   <section className="card" aria-labelledby={fieldId('t3')}>
                     <h2 className="card__title" id={fieldId('t3')} ref={stepHeading} tabIndex={-1}>
                       <span className="card__num">4</span>
-                      Toi
+                      {t('Toi', 'You')}
                     </h2>
                     <div className="field">
-                      <label htmlFor={fieldId('name')}>Ton nom complet</label>
+                      <label htmlFor={fieldId('name')}>{t('Ton nom complet', 'Your full name')}</label>
                       <input
                         id={fieldId('name')}
                         className="input"
@@ -630,10 +730,11 @@ export function Generator({ route }: { route: Route }) {
                     <div className="field">
                       <label htmlFor={fieldId('email')}>
                         {isReport ? (
-                          'Ton adresse e-mail'
+                          t('Ton adresse e-mail', 'Your email address')
                         ) : (
                           <>
-                            E-mail concerné par la fuite <span className="optional">(facultatif)</span>
+                            {t('E-mail concerné par la fuite', 'Email address in the breach')}{' '}
+                            <span className="optional">{t('(facultatif)', '(optional)')}</span>
                           </>
                         )}
                       </label>
@@ -649,13 +750,22 @@ export function Generator({ route }: { route: Route }) {
                       />
                       <p className="hint" id={fieldId('emailHint')}>
                         {isReport
-                          ? 'Obligatoire dans un signalement (article 16 du DSA) : le destinataire doit pouvoir te répondre.'
-                          : "Aide le site à retrouver tes données. N'ajoute pas de mot de passe."}
+                          ? t(
+                              'Obligatoire dans un signalement (article 16 du DSA) : le destinataire doit pouvoir te répondre.',
+                              'Required in a notice (Article 16 DSA): the recipient must be able to reply to you.',
+                            )
+                          : t(
+                              "Aide le site à retrouver tes données. N'ajoute pas de mot de passe.",
+                              'Helps the company find your data. Do not add a password.',
+                            )}
                       </p>
                     </div>
                     <div className="field">
                       <label htmlFor={fieldId('address')}>
-                        Adresse postale <span className="optional">(facultatif, utile pour un courrier)</span>
+                        {t('Adresse postale', 'Postal address')}{' '}
+                        <span className="optional">
+                          {t('(facultatif, utile pour un courrier)', '(optional, useful for a paper letter)')}
+                        </span>
                       </label>
                       <textarea
                         id={fieldId('address')}
@@ -666,7 +776,7 @@ export function Generator({ route }: { route: Route }) {
                       />
                     </div>
                     <div className="field">
-                      <label htmlFor={fieldId('date')}>Date de la lettre</label>
+                      <label htmlFor={fieldId('date')}>{t('Date de la lettre', 'Date of the letter')}</label>
                       <input
                         id={fieldId('date')}
                         className="input"
@@ -679,8 +789,10 @@ export function Generator({ route }: { route: Route }) {
 
                   <Notice>
                     <p>
-                      Ces champs restent dans cet onglet. Ton nom, ton e-mail et ton adresse ne sont jamais enregistrés,
-                      même dans le suivi.
+                      {t(
+                        'Ces champs restent dans cet onglet. Ton nom, ton e-mail et ton adresse ne sont jamais enregistrés, même dans le suivi.',
+                        'These fields stay in this tab. Your name, email and address are never stored, not even in the tracker.',
+                      )}
                     </p>
                   </Notice>
                 </>
@@ -695,17 +807,21 @@ export function Generator({ route }: { route: Route }) {
               <div className="preview-window">
                 <div className="preview-bar">
                   <h2 id={fieldId('preview')} ref={stepHeading} tabIndex={-1}>
-                    Ta lettre
+                    {t('Ta lettre', 'Your letter')}
                   </h2>
                   {letter && (
-                    <ul className="chips" aria-label="Articles du RGPD cités">
+                    <ul className="chips" aria-label={t('Articles du RGPD cités', 'GDPR articles cited')}>
                       {letter.articles.map((article) => (
                         <li className="chip" key={article}>
-                          Art. {article}
+                          Art. {articleChip(article, letter.lang)}
                         </li>
                       ))}
                     </ul>
                   )}
+                </div>
+
+                <div className="preview-lang">
+                  <LetterLanguage value={letterLang} onChange={setLetterLang} />
                 </div>
 
                 <div className="paper-wrap">
@@ -713,22 +829,29 @@ export function Generator({ route }: { route: Route }) {
                     className="paper"
                     aria-live="polite"
                     aria-atomic="false"
-                    aria-label="Texte de la lettre"
+                    aria-label={t('Texte de la lettre', 'Text of the letter')}
+                    lang={letterLang}
                     tabIndex={0}
                   >
                     {letter ? (
                       <>
-                        <p className="paper__subject">Objet : {letter.subject}</p>
+                        <p className="paper__subject">
+                          {subjectLabel(letter.lang)}
+                          {letter.subject}
+                        </p>
                         <pre className="paper__body">{letter.body}</pre>
                       </>
                     ) : (
-                      <div className="paper__empty">
+                      <div className="paper__empty" lang={lang}>
                         <div className="bits-art" aria-hidden="true">
                           {'01001100 01100101 01110100\n01110100 01110010 01100101\n00100000 01110000 01110010'}
                         </div>
-                        <p>Pour afficher ta lettre, indique {result.missing.join(', ')}.</p>
+                        <p>
+                          {t('Pour afficher ta lettre, indique ', 'To show your letter, enter ')}
+                          {result.missing.join(', ')}.
+                        </p>
                         <button type="button" className="btn btn--sm" onClick={() => goTo(1)}>
-                          Reprendre les étapes
+                          {t('Reprendre les étapes', 'Go back through the steps')}
                         </button>
                       </div>
                     )}
@@ -740,9 +863,10 @@ export function Generator({ route }: { route: Route }) {
                   {relanceTooEarly && (
                     <Notice tone="warn">
                       <p>
-                        Le délai d'un mois court jusqu'au{' '}
-                        {formatLongFr(gdprDeadlines(form.previousRequestDate).standard)} environ. Une relance avant
-                        cette date reste possible, mais elle a moins de poids.
+                        {t(
+                          `Le délai d'un mois court jusqu'au ${formatLong(gdprDeadlines(form.previousRequestDate).standard, 'fr')} environ. Une relance avant cette date reste possible, mais elle a moins de poids.`,
+                          `The one-month period runs until about ${formatLong(gdprDeadlines(form.previousRequestDate).standard, 'en')}. A reminder before that date is still possible, but it carries less weight.`,
+                        )}
                       </p>
                     </Notice>
                   )}
@@ -750,26 +874,26 @@ export function Generator({ route }: { route: Route }) {
                   <div className="btn-row">
                     <button type="button" className="btn btn--primary" onClick={onCopy} disabled={!letter}>
                       <Icon name="copy" size={18} />
-                      Copier
+                      {t('Copier', 'Copy')}
                     </button>
                     {letter ? (
                       <a className="btn" href={mailtoHref(letter, form.contact)}>
                         <Icon name="mail" size={18} />
-                        Ouvrir dans ma messagerie
+                        {t('Ouvrir dans ma messagerie', 'Open in my email app')}
                       </a>
                     ) : (
                       <button type="button" className="btn" disabled>
                         <Icon name="mail" size={18} />
-                        Ouvrir dans ma messagerie
+                        {t('Ouvrir dans ma messagerie', 'Open in my email app')}
                       </button>
                     )}
                     <button type="button" className="btn" onClick={onDownload} disabled={!letter}>
                       <Icon name="download" size={18} />
-                      Télécharger
+                      {t('Télécharger', 'Download')}
                     </button>
                     <button type="button" className="btn" onClick={() => window.print()} disabled={!letter}>
                       <Icon name="printer" size={18} />
-                      Imprimer
+                      {t('Imprimer', 'Print')}
                     </button>
                   </div>
 
@@ -777,24 +901,37 @@ export function Generator({ route }: { route: Route }) {
                     <label className="check small">
                       <input type="checkbox" checked={keepCopy} onChange={(e) => setKeepCopy(e.target.checked)} />
                       <span>
-                        Garder une copie de la lettre dans le suivi, pour un éventuel dossier CNIL (elle contient ton
-                        nom et reste dans ce navigateur)
+                        {t(
+                          'Garder une copie de la lettre dans le suivi, pour un éventuel dossier CNIL (elle contient ton nom et reste dans ce navigateur)',
+                          'Keep a copy of the letter in the tracker, for a possible complaint to the CNIL (it contains your name and stays in this browser)',
+                        )}
                       </span>
                     </label>
                   )}
                   <div className="btn-row">
                     <button type="button" className="btn btn--ghost" onClick={onTrack} disabled={!letter || !canTrack}>
                       <Icon name="plus" size={18} />
-                      {form.kind === 'relance' ? 'Marquer comme relancée dans le suivi' : 'Ajouter au suivi'}
+                      {form.kind === 'relance'
+                        ? t('Marquer comme relancée dans le suivi', 'Mark as followed up in the tracker')
+                        : t('Ajouter au suivi', 'Add to the tracker')}
                     </button>
-                    <a className="btn btn--ghost" href={href('/suivi')}>
-                      Voir mon suivi
+                    <a className="btn btn--ghost" href={link('/suivi')}>
+                      {t('Voir mon suivi', 'See my tracker')}
+                      {frenchOnly('/suivi') && <FrenchTag />}
                     </a>
                   </div>
 
                   {form.kind === 'relance' && !tracked && (
                     <p className="small muted">
-                      Pour relier cette relance à ton suivi, lance-la depuis la page <a href={href('/suivi')}>Suivi</a>.
+                      {t(
+                        'Pour relier cette relance à ton suivi, lance-la depuis la page ',
+                        'To link this reminder to your tracker, start it from the ',
+                      )}
+                      <a href={link('/suivi')}>
+                        {t('Suivi', 'Tracker')}
+                        {frenchOnly('/suivi') && <FrenchTag />}
+                      </a>
+                      {t('.', ' page.')}
                     </p>
                   )}
 
@@ -807,18 +944,24 @@ export function Generator({ route }: { route: Route }) {
                     {saveFailed && (
                       <Notice tone="warn">
                         <p>
-                          Ton navigateur refuse l'enregistrement local (navigation privée ?). Exporte ton suivi pour le
-                          garder.
+                          {t(
+                            "Ton navigateur refuse l'enregistrement local (navigation privée ?). Exporte ton suivi pour le garder.",
+                            'Your browser refuses local storage (private browsing?). Export your tracker to keep it.',
+                          )}
                         </p>
                       </Notice>
                     )}
                   </div>
 
                   <p className="small muted">
-                    Modèle indicatif, pas un conseil juridique. Relis la lettre avant de l'envoyer. Certains logiciels
-                    de messagerie coupent les textes longs : si c'est le cas, utilise « Copier ». Garde une preuve de
-                    l'envoi : le délai d'un mois court à partir de la réception.{' '}
-                    <a href={href('/ressources')}>Comment l'envoyer</a>
+                    {t(
+                      "Modèle indicatif, pas un conseil juridique. Relis la lettre avant de l'envoyer. Certains logiciels de messagerie coupent les textes longs : si c'est le cas, utilise « Copier ». Garde une preuve de l'envoi : le délai d'un mois court à partir de la réception.",
+                      'Indicative template, not legal advice. Read the letter again before sending it. Some email apps cut long texts: if so, use “Copy”. Keep proof that you sent it: the one-month period runs from receipt.',
+                    )}{' '}
+                    <a href={link('/ressources')}>
+                      {t("Comment l'envoyer", 'How to send it')}
+                      {frenchOnly('/ressources') && <FrenchTag />}
+                    </a>
                   </p>
                 </div>
               </div>

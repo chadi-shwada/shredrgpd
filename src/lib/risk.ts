@@ -4,6 +4,8 @@
  * évaluation de la fuite, seulement un repère.
  */
 
+import type { Lang } from './lang';
+
 export type RiskLevel = 'eleve' | 'moyen' | 'faible';
 
 /** Données qui permettent une fraude directe ou touchent à l'intime. */
@@ -45,4 +47,21 @@ export function breachRisk(dataClasses: readonly string[]): RiskLevel {
   if (dataClasses.some((dc) => HIGH.has(dc))) return 'eleve';
   if (dataClasses.some((dc) => MEDIUM.has(dc))) return 'moyen';
   return 'faible';
+}
+
+export const RISK_LABELS_EN: Record<RiskLevel, string> = {
+  eleve: 'High risk',
+  moyen: 'Medium risk',
+  faible: 'Low risk',
+};
+
+export const RISK_RULE_EN =
+  'Indicative guide: high if passwords, bank details, ID documents or health data leaked; medium if a phone number, address or date of birth; low otherwise.';
+
+export function riskLabel(level: RiskLevel, lang: Lang): string {
+  return lang === 'en' ? RISK_LABELS_EN[level] : RISK_LABELS[level];
+}
+
+export function riskRule(lang: Lang): string {
+  return lang === 'en' ? RISK_RULE_EN : RISK_RULE;
 }

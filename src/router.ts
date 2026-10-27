@@ -1,4 +1,6 @@
 import { useSyncExternalStore } from 'react';
+import type { Lang } from './lib/lang';
+import { localizePath, resolvePath } from './lib/paths';
 
 /**
  * Routage par chemin (/lettre, /verifier…) pour que chaque page soit indexable.
@@ -8,6 +10,9 @@ import { useSyncExternalStore } from 'react';
  * jamais envoyé au serveur, donc rien n'apparaît dans les journaux de l'hébergeur.
  *
  * Les anciennes adresses en #/lettre?… restent valables (parseLocation).
+ *
+ * Version anglaise : les chemins en /en/… (src/lib/paths.ts) sont ramenés au chemin
+ * français de la page (« /en/check » → « /verifier »), avec la langue dans la route.
  */
 
 export type RoutePath =
@@ -37,8 +42,10 @@ export const PUBLIC_ROUTES: readonly RoutePath[] = [
 ];
 
 export interface Route {
+  /** Chemin français de la page, qui sert d'identifiant (« /verifier », même sur /en/check). */
   path: string;
   query: URLSearchParams;
+  lang: Lang;
 }
 
 const NAVIGATE = 'shred:navigate';
@@ -75,9 +82,10 @@ export function parseLocation(pathname: string, hash: string): Route {
   const fragment = hash.replace(/^#/, '');
   if (fragment.startsWith('/')) {
     const [legacyPath = '/', search = ''] = fragment.split('?');
-    return { path: normalizePath(legacyPath), query: new URLSearchParams(search) };
+    return { path: normalizePath(legacyPath), query: new URLSearchParams(search), lang: 'fr' };
   }
-  return { path: normalizePath(pathname), query: new URLSearchParams(fragment) };
+  const { path, lang } = resolvePath(normalizePath(pathname));
+  return { path, query: new URLSearchParams(fragment), lang };
 }
 
 export function useRoute(): Route {
@@ -88,9 +96,10 @@ export function useRoute(): Route {
     : parseLocation(location.slice(0, hashIndex), location.slice(hashIndex));
 }
 
-export function href(path: RoutePath, query?: Record<string, string>): string {
+/** Adresse d'une page, dans la langue demandée si elle y existe (sinon en français). */
+export function href(path: RoutePath, query?: Record<string, string>, lang: Lang = 'fr'): string {
   const search = query ? new URLSearchParams(query).toString() : '';
-  return `${path}${search ? `#${search}` : ''}`;
+  return `${localizePath(path, lang)}${search ? `#${search}` : ''}`;
 }
 
 export function navigate(url: string, { replace = false } = {}): void {

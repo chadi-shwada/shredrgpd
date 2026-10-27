@@ -1,13 +1,15 @@
 import { useId, useState } from 'react';
 import { readStorage, writeStorage } from '../browser';
 import { buildActionPlan, loadDone, PLAN_STORAGE_KEY } from '../lib/actionPlan';
+import { useI18n } from '../i18n';
 import { Icon } from './Icon';
 
 /** Plan d'action à cocher, adapté aux données exposées ; progression gardée dans le navigateur. */
 export function ActionPlan({ dataClasses, write = true }: { dataClasses: string[]; write?: boolean }) {
   const id = useId();
+  const { t, lang } = useI18n();
   const [done, setDone] = useState<string[]>(() => loadDone(readStorage(PLAN_STORAGE_KEY)));
-  const items = buildActionPlan(dataClasses, { write });
+  const items = buildActionPlan(dataClasses, { write, lang });
   if (items.length === 0) return null;
   const count = items.filter((i) => done.includes(i.id)).length;
 
@@ -20,9 +22,9 @@ export function ActionPlan({ dataClasses, write = true }: { dataClasses: string[
   return (
     <div className="plan">
       <div className="plan__head">
-        <h3 id={`${id}-t`}>Ton plan d'action</h3>
+        <h3 id={`${id}-t`}>{t("Ton plan d'action", 'Your action plan')}</h3>
         <span className="plan__count" aria-live="polite">
-          {count} / {items.length} fait{count > 1 ? 's' : ''}
+          {count} / {items.length} {t(`fait${count > 1 ? 's' : ''}`, 'done')}
         </span>
       </div>
       <div
@@ -54,7 +56,7 @@ export function ActionPlan({ dataClasses, write = true }: { dataClasses: string[
           </li>
         ))}
       </ul>
-      <p className="hint">Ta progression reste dans ce navigateur.</p>
+      <p className="hint">{t('Ta progression reste dans ce navigateur.', 'Your progress stays in this browser.')}</p>
     </div>
   );
 }

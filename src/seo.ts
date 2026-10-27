@@ -4,7 +4,9 @@
  * HTML par adresse, et dans le navigateur pour le titre de l'onglet.
  */
 
-import { SITE_DESCRIPTION, SITE_TITLE, SITE_URL } from './config';
+import { SITE_DESCRIPTION, SITE_DESCRIPTION_EN, SITE_TITLE, SITE_TITLE_EN, SITE_URL } from './config';
+import type { Lang } from './lib/lang';
+import { EN_PATHS, UNKNOWN_EN_PATH } from './lib/paths';
 
 export interface PageMeta {
   path: string;
@@ -14,6 +16,8 @@ export interface PageMeta {
   image?: string;
   /** Dernière modification connue (AAAA-MM-JJ), pour le sitemap. */
   lastmod?: string;
+  /** Langue de la page (français par défaut). */
+  lang?: Lang;
 }
 
 export const PAGES: PageMeta[] = [
@@ -73,17 +77,63 @@ export const PAGES: PageMeta[] = [
   },
 ];
 
+/**
+ * Pages de la version anglaise, à leur adresse publiée (/en/check…). Une entrée par
+ * chemin de EN_PATHS (vérifié par seo.test.ts).
+ */
+export const PAGES_EN: PageMeta[] = [
+  { path: '/en', title: SITE_TITLE_EN, description: SITE_DESCRIPTION_EN },
+  {
+    path: '/en/check',
+    title: 'Check my data breaches · ShredRGPD',
+    description:
+      'Find the breaches that contain your email address, see which data were exposed and test a password without handing it to anyone. Then write to the company in one click.',
+  },
+  {
+    path: '/en/what-to-do',
+    title: 'What to do after a data breach in France · ShredRGPD',
+    description:
+      'Suspicious text, call or email, exposed bank card, ID document or password: what to do and the official French reporting channels.',
+  },
+  {
+    path: '/en/letter',
+    title: 'Write a GDPR letter · ShredRGPD',
+    description:
+      'Generate an erasure, access, objection or reminder letter, or a notice to the hosting provider, citing the right GDPR articles, in English or French. Free, in your browser.',
+  },
+].map((page) => ({ ...page, lang: 'en' as const }));
+
 export const NOT_FOUND: PageMeta = {
   path: '/404',
   title: 'Page introuvable · ShredRGPD',
   description: "Cette page n'existe pas.",
 };
 
-export function pageMeta(path: string): PageMeta {
+export const NOT_FOUND_EN: PageMeta = {
+  path: UNKNOWN_EN_PATH,
+  title: 'Page not found · ShredRGPD',
+  description: 'This page does not exist.',
+  lang: 'en',
+};
+
+/** Métadonnées d'une page, par son chemin français (identifiant de la route) et sa langue. */
+export function pageMeta(path: string, lang: Lang = 'fr'): PageMeta {
+  if (lang === 'en') {
+    const en = EN_PATHS[path];
+    return PAGES_EN.find((p) => p.path === en) ?? NOT_FOUND_EN;
+  }
   return PAGES.find((p) => p.path === path) ?? NOT_FOUND;
 }
 
-/** Nom du fichier HTML généré pour une page (« /verifier » → « verifier.html »). */
+/** Les deux versions d'une page traduite (adresses publiées), sinon null. */
+export function alternates(page: PageMeta): { fr: string; en: string } | null {
+  for (const [fr, en] of Object.entries(EN_PATHS)) {
+    if (page.path === fr || page.path === en) return { fr, en };
+  }
+  return null;
+}
+
+/** Nom du fichier HTML généré pour une page (« /verifier » → « verifier.html », « /en/check » → « en/check.html »). */
 export function htmlFileName(page: PageMeta): string {
   return page.path === '/' ? 'index.html' : `${page.path.slice(1)}.html`;
 }
@@ -95,13 +145,26 @@ const esc = (text: string) =>
 export function headTags(page: PageMeta, { noindex = false } = {}): string {
   const url = `${SITE_URL}${page.path === '/' ? '/' : page.path}`;
   const image = `${SITE_URL}${page.image ?? '/og.png'}`;
-  const imageAlt = page.image ? page.title : "ShredRGPD : demande l'effacement de tes données";
+  const en = page.lang === 'en';
+  const imageAlt = page.image
+    ? page.title
+    : en
+      ? 'ShredRGPD: request the erasure of your data'
+      : "ShredRGPD : demande l'effacement de tes données";
+  const versions = noindex ? null : alternates(page);
   const tags = [
     `<title>${esc(page.title)}</title>`,
     `<meta name="description" content="${esc(page.description)}" />`,
     noindex ? '<meta name="robots" content="noindex" />' : `<link rel="canonical" href="${url}" />`,
     '<meta property="og:type" content="website" />',
-    '<meta property="og:locale" content="fr_FR" />',
+    `<meta property="og:locale" content="${en ? 'en_GB' : 'fr_FR'}" />`,
+    ...(versions
+      ? [
+          `<link rel="alternate" hreflang="fr" href="${SITE_URL}${versions.fr}" />`,
+          `<link rel="alternate" hreflang="en" href="${SITE_URL}${versions.en}" />`,
+          `<link rel="alternate" hreflang="x-default" href="${SITE_URL}${versions.fr}" />`,
+        ]
+      : []),
     '<meta property="og:site_name" content="ShredRGPD" />',
     `<meta property="og:title" content="${esc(page.title)}" />`,
     `<meta property="og:description" content="${esc(page.description)}" />`,
@@ -115,7 +178,7 @@ export function headTags(page: PageMeta, { noindex = false } = {}): string {
     `<meta name="twitter:description" content="${esc(page.description)}" />`,
     `<meta name="twitter:image" content="${image}" />`,
     `<link rel="alternate" type="application/atom+xml" title="Fuites de données en France" href="/fuites.xml" />`,
-    ...(page.path === '/' && !noindex ? [structuredData()] : []),
+    ...((page.path === '/' || page.path === '/en') && !noindex ? [structuredData(page.lang ?? 'fr')] : []),
   ];
   return tags.join('\n    ');
 }
@@ -124,18 +187,21 @@ export function headTags(page: PageMeta, { noindex = false } = {}): string {
  * Données structurées de l'accueil (schema.org, JSON-LD) : le site et l'outil gratuit. Bloc de données,
  * jamais exécuté : la CSP (script-src 'self') ne le concerne pas.
  */
-export function structuredData(): string {
-  const url = `${SITE_URL}/`;
+export function structuredData(lang: Lang = 'fr'): string {
+  const en = lang === 'en';
+  const url = en ? `${SITE_URL}/en` : `${SITE_URL}/`;
+  const description = en ? SITE_DESCRIPTION_EN : SITE_DESCRIPTION;
+  const inLanguage = en ? 'en-GB' : 'fr-FR';
   const data = {
     '@context': 'https://schema.org',
     '@graph': [
-      { '@type': 'WebSite', name: 'ShredRGPD', url, inLanguage: 'fr-FR', description: SITE_DESCRIPTION },
+      { '@type': 'WebSite', name: 'ShredRGPD', url, inLanguage, description },
       {
         '@type': 'WebApplication',
         name: 'ShredRGPD',
         url,
-        description: SITE_DESCRIPTION,
-        inLanguage: 'fr-FR',
+        description,
+        inLanguage,
         applicationCategory: 'UtilitiesApplication',
         operatingSystem: 'Web',
         isAccessibleForFree: true,
@@ -149,7 +215,7 @@ export function structuredData(): string {
 
 /** Plan du site : les pages fixes, plus les pages générées au build (une par fuite). */
 export function sitemapXml(extra: readonly PageMeta[] = []): string {
-  const urls = [...PAGES, ...extra]
+  const urls = [...PAGES, ...PAGES_EN, ...extra]
     .map((p) => `  <url><loc>${SITE_URL}${p.path}</loc>${p.lastmod ? `<lastmod>${p.lastmod}</lastmod>` : ''}</url>`)
     .join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;

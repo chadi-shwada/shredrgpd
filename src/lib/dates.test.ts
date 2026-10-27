@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, addMonths, daysBetween, formatLongFr, gdprDeadlines, isValidIsoDate, todayIso } from './dates';
+import {
+  addDays,
+  addMonths,
+  daysBetween,
+  formatLong,
+  formatLongFr,
+  gdprDeadlines,
+  isValidIsoDate,
+  todayIso,
+} from './dates';
 
 describe('isValidIsoDate', () => {
   it('accepte une date réelle', () => {
@@ -60,5 +69,13 @@ describe('gdprDeadlines (article 12.3)', () => {
 describe('todayIso', () => {
   it('utilise la date locale', () => {
     expect(todayIso(new Date(2026, 9, 5, 23, 59))).toBe('2026-10-05');
+  });
+});
+
+describe('formatLong', () => {
+  it('écrit la date en français ou en anglais (usage britannique)', () => {
+    expect(formatLong('2026-10-01', 'fr')).toBe('1er octobre 2026');
+    expect(formatLong('2026-10-01', 'en')).toBe('1 October 2026');
+    expect(formatLong('2027-03-15', 'en')).toBe('15 March 2027');
   });
 });

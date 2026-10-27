@@ -1,6 +1,7 @@
 import { useId, useState } from 'react';
 import { findBreachesInText, PASTE_MAX_LENGTH, type Breach, type PastedMatch } from '../lib/breaches';
-import { formatLongFr } from '../lib/dates';
+import { formatLong } from '../lib/dates';
+import { useI18n } from '../i18n';
 import { Icon } from './Icon';
 import { Notice } from './Notice';
 
@@ -11,6 +12,7 @@ import { Notice } from './Notice';
  */
 export function PasteResults({ breaches, onAdd }: { breaches: Breach[]; onAdd: (names: string[]) => void }) {
   const id = useId();
+  const { t, lang } = useI18n();
   const [text, setText] = useState('');
   const [matches, setMatches] = useState<PastedMatch[] | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
@@ -34,7 +36,7 @@ export function PasteResults({ breaches, onAdd }: { breaches: Breach[]; onAdd: (
   return (
     <div className="paste">
       <div className="field">
-        <label htmlFor={`${id}-text`}>Colle ici la page de résultats</label>
+        <label htmlFor={`${id}-text`}>{t('Colle ici la page de résultats', 'Paste the results page here')}</label>
         <textarea
           id={`${id}-text`}
           className="textarea paste__input"
@@ -47,21 +49,25 @@ export function PasteResults({ breaches, onAdd }: { breaches: Breach[]; onAdd: (
           aria-describedby={`${id}-hint`}
         />
         <p className="hint" id={`${id}-hint`}>
-          Sur la page de résultats, sélectionne tout (Ctrl+A, ou « Tout sélectionner » sur téléphone), copie, puis colle
-          ici. Le texte reste dans ton navigateur et est effacé dès l'analyse.
+          {t(
+            "Sur la page de résultats, sélectionne tout (Ctrl+A, ou « Tout sélectionner » sur téléphone), copie, puis colle ici. Le texte reste dans ton navigateur et est effacé dès l'analyse.",
+            'On the results page, select all (Ctrl+A, or “Select all” on a phone), copy, then paste here. The text stays in your browser and is deleted as soon as it has been analysed.',
+          )}
         </p>
       </div>
       <button type="button" className="btn btn--primary" onClick={analyse} disabled={!text.trim()}>
         <Icon name="search" size={18} />
-        Repérer les fuites
+        {t('Repérer les fuites', 'Find the breaches')}
       </button>
 
       <div aria-live="polite">
         {matches && matches.length === 0 && (
           <Notice tone="warn">
             <p>
-              Aucune fuite reconnue dans ce texte. Vérifie que tu as copié la page de résultats, ou cherche les noms
-              dans la liste ci-dessous.
+              {t(
+                'Aucune fuite reconnue dans ce texte. Vérifie que tu as copié la page de résultats, ou cherche les noms dans la liste ci-dessous.',
+                'No breach recognised in this text. Check that you copied the results page, or search for the names in the list below.',
+              )}
             </p>
           </Notice>
         )}
@@ -69,9 +75,15 @@ export function PasteResults({ breaches, onAdd }: { breaches: Breach[]; onAdd: (
           <div className="paste__found">
             <p>
               <strong>
-                {matches.length} fuite{matches.length > 1 ? 's' : ''} reconnue{matches.length > 1 ? 's' : ''}.
+                {t(
+                  `${matches.length} fuite${matches.length > 1 ? 's' : ''} reconnue${matches.length > 1 ? 's' : ''}.`,
+                  `${matches.length} breach${matches.length > 1 ? 'es' : ''} recognised.`,
+                )}
               </strong>{' '}
-              Vérifie la liste avant de continuer : décoche ce qui ne te concerne pas.
+              {t(
+                'Vérifie la liste avant de continuer : décoche ce qui ne te concerne pas.',
+                'Check the list before you continue: untick anything that does not concern you.',
+              )}
             </p>
             <ul className="paste__list">
               {matches.map(({ breach, certain }) => (
@@ -85,9 +97,9 @@ export function PasteResults({ breaches, onAdd }: { breaches: Breach[]; onAdd: (
                     <span>
                       <strong>{breach.title}</strong>{' '}
                       <span className="hint">
-                        {breach.domain || breach.name} · {formatLongFr(breach.date)}
+                        {breach.domain || breach.name} · {formatLong(breach.date, lang)}
                       </span>
-                      {!certain && <span className="breach__flag">à confirmer</span>}
+                      {!certain && <span className="breach__flag">{t('à confirmer', 'to confirm')}</span>}
                     </span>
                   </label>
                 </li>
@@ -95,17 +107,22 @@ export function PasteResults({ breaches, onAdd }: { breaches: Breach[]; onAdd: (
             </ul>
             {matches.some((m) => !m.certain) && (
               <p className="hint">
-                « À confirmer » : nom repéré dans une phrase, un menu ou un pied de page, ou porté par plusieurs fuites.
-                Coche-le seulement s'il figure bien dans tes résultats.
+                {t(
+                  "« À confirmer » : nom repéré dans une phrase, un menu ou un pied de page, ou porté par plusieurs fuites. Coche-le seulement s'il figure bien dans tes résultats.",
+                  '“To confirm”: a name found in a sentence, a menu or a footer, or shared by several breaches. Tick it only if it really is in your results.',
+                )}
               </p>
             )}
             <div className="btn-row">
               <button type="button" className="btn btn--primary" onClick={confirm} disabled={picked.length === 0}>
                 <Icon name="check" size={18} />
-                Cocher {picked.length > 1 ? `ces ${picked.length} fuites` : 'cette fuite'}
+                {t(
+                  `Cocher ${picked.length > 1 ? `ces ${picked.length} fuites` : 'cette fuite'}`,
+                  `Tick ${picked.length > 1 ? `these ${picked.length} breaches` : 'this breach'}`,
+                )}
               </button>
               <button type="button" className="btn" onClick={() => setMatches(null)}>
-                Annuler
+                {t('Annuler', 'Cancel')}
               </button>
             </div>
           </div>

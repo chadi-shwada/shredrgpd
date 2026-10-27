@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { useI18n } from '../i18n';
+import { dataClassLabel } from '../lib/breaches';
+import type { Lang } from '../lib/lang';
 import { Icon } from './Icon';
 
 /**
@@ -7,7 +10,7 @@ import { Icon } from './Icon';
  * « Écrire la lettre » mis en avant.
  * Les fuites sont réelles : ce sont les trois premiers résultats de la recherche
  * « mobile » dans le catalogue Have I Been Pwned (vérifié le 6 octobre 2026),
- * avec leurs types de données traduits comme sur la page Vérifier.
+ * avec leurs types de données (libellés HIBP) affichés comme sur la page Vérifier.
  * Ne tourne que lorsqu'il est visible ; état final fixe si prefers-reduced-motion.
  */
 
@@ -15,35 +18,28 @@ const BREACHES = [
   {
     title: 'Free',
     domain: 'free.fr',
-    date: 'oct. 2024',
-    classes: [
-      'numéros de compte bancaire',
-      'dates de naissance',
-      'genre',
-      'noms',
-      'numéros de téléphone',
-      'adresses postales',
-    ],
+    date: { fr: 'oct. 2024', en: 'Oct 2024' },
+    classes: ['Bank account numbers', 'Dates of birth', 'Genders', 'Names', 'Phone numbers', 'Physical addresses'],
   },
   {
     title: 'La Poste Mobile',
     domain: 'lapostemobile.fr',
-    date: 'juil. 2022',
+    date: { fr: 'juil. 2022', en: 'Jul 2022' },
     classes: [
-      'numéros de compte bancaire',
-      'dates de naissance',
-      'adresses e-mail',
-      'genre',
-      'noms',
-      'numéros de téléphone',
-      'adresses postales',
+      'Bank account numbers',
+      'Dates of birth',
+      'Email addresses',
+      'Genders',
+      'Names',
+      'Phone numbers',
+      'Physical addresses',
     ],
   },
   {
     title: 'ActMobile',
     domain: 'actmobile.com',
-    date: 'oct. 2021',
-    classes: ['adresses e-mail', 'adresses IP'],
+    date: { fr: 'oct. 2021', en: 'Oct 2021' },
+    classes: ['Email addresses', 'IP addresses'],
   },
 ];
 
@@ -51,7 +47,7 @@ const BREACHES = [
 const SHOWN = 3;
 
 const QUERY = 'mobile';
-const RISKY = new Set(['mots de passe', 'numéros de compte bancaire']);
+const RISKY = new Set(['Passwords', 'Bank account numbers']);
 
 interface Frame {
   query: string;
@@ -79,14 +75,17 @@ export function exposedCount(selected: number): number {
   return new Set(BREACHES.slice(0, selected).flatMap((b) => b.classes)).size;
 }
 
-function footerText(selected: number): string {
-  if (selected === 0) return 'Coche les fuites trouvées';
+function footerText(selected: number, lang: Lang): string {
+  if (selected === 0) return lang === 'en' ? 'Tick the breaches found' : 'Coche les fuites trouvées';
   const types = exposedCount(selected);
-  return `${selected} fuite${selected > 1 ? 's' : ''} · ${types} types de données exposés`;
+  return lang === 'en'
+    ? `${selected} breach${selected > 1 ? 'es' : ''} · ${types} data types exposed`
+    : `${selected} fuite${selected > 1 ? 's' : ''} · ${types} types de données exposés`;
 }
 
 export function VerifyMock() {
   const ref = useRef<HTMLDivElement>(null);
+  const { t, lang } = useI18n();
   const [reduced] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   );
@@ -124,12 +123,16 @@ export function VerifyMock() {
         <span className="terminal__dot" />
         <span className="terminal__dot" />
         <span className="terminal__dot" />
-        <span className="mock__url">shred / vérifier</span>
+        <span className="mock__url">{t('shred / vérifier', 'shred / check')}</span>
       </div>
       <div className="mock__body">
         <div className="mock__search" data-active={frame.query.length > 0}>
           <Icon name="search" size={16} />
-          <span>{frame.query || <span className="mock__placeholder">Nom de la fuite ou du site</span>}</span>
+          <span>
+            {frame.query || (
+              <span className="mock__placeholder">{t('Nom de la fuite ou du site', 'Breach or website name')}</span>
+            )}
+          </span>
           {!frame.cta && <span className="terminal__cursor" />}
         </div>
         {BREACHES.map((b, i) => (
@@ -138,12 +141,12 @@ export function VerifyMock() {
             <div>
               <strong>{b.title}</strong>
               <span className="mock__meta">
-                {b.domain} · {b.date}
+                {b.domain} · {b.date[lang]}
               </span>
               <span className="mock__chips">
                 {b.classes.slice(0, SHOWN).map((c) => (
                   <span key={c} className={`chip${RISKY.has(c) ? ' chip--danger' : ''}`}>
-                    {c}
+                    {dataClassLabel(c, lang)}
                   </span>
                 ))}
                 {b.classes.length > SHOWN && <span className="chip">+{b.classes.length - SHOWN}</span>}
@@ -152,9 +155,9 @@ export function VerifyMock() {
           </div>
         ))}
         <div className="mock__footer">
-          <span>{footerText(frame.selected)}</span>
+          <span>{footerText(frame.selected, lang)}</span>
           <span className="mock__cta" data-active={frame.cta}>
-            Écrire la lettre <Icon name="arrow" size={14} />
+            {t('Écrire la lettre', 'Write the letter')} <Icon name="arrow" size={14} />
           </span>
         </div>
       </div>

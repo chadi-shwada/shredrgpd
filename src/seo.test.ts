@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { PUBLIC_ROUTES } from './router';
-import { headTags, htmlFileName, NOT_FOUND, pageMeta, PAGES, sitemapXml, structuredData } from './seo';
+import { EN_PATHS } from './lib/paths';
+import {
+  headTags,
+  htmlFileName,
+  NOT_FOUND,
+  NOT_FOUND_EN,
+  pageMeta,
+  PAGES,
+  PAGES_EN,
+  sitemapXml,
+  structuredData,
+} from './seo';
 
 describe('pages', () => {
   it('couvre exactement les routes de l’application', () => {
@@ -74,5 +85,50 @@ describe('référencement', () => {
     expect(headTags(pageMeta('/'))).toContain('application/ld+json');
     expect(headTags(pageMeta('/verifier'))).not.toContain('application/ld+json');
     expect(headTags(NOT_FOUND, { noindex: true })).not.toContain('application/ld+json');
+  });
+});
+
+describe('version anglaise', () => {
+  it('a une page par adresse anglaise, en anglais', () => {
+    expect(PAGES_EN.map((p) => p.path).sort()).toEqual(Object.values(EN_PATHS).sort());
+    for (const p of PAGES_EN) expect(p.lang).toBe('en');
+    expect(new Set(PAGES_EN.map((p) => p.title)).size).toBe(PAGES_EN.length);
+    for (const p of PAGES_EN) expect(p.description.length).toBeLessThanOrEqual(200);
+  });
+
+  it('trouve la page anglaise par son chemin français', () => {
+    expect(pageMeta('/verifier', 'en').path).toBe('/en/check');
+    expect(pageMeta('/suivi', 'en')).toBe(NOT_FOUND_EN);
+  });
+
+  it('écrit en/check.html et en.html', () => {
+    expect(htmlFileName(pageMeta('/verifier', 'en'))).toBe('en/check.html');
+    expect(htmlFileName(pageMeta('/', 'en'))).toBe('en.html');
+  });
+
+  it('relie les deux versions (hreflang), le français par défaut', () => {
+    for (const page of [pageMeta('/verifier'), pageMeta('/verifier', 'en')]) {
+      const tags = headTags(page);
+      expect(tags).toContain('<link rel="alternate" hreflang="fr" href="https://shredrgpd.fr/verifier" />');
+      expect(tags).toContain('<link rel="alternate" hreflang="en" href="https://shredrgpd.fr/en/check" />');
+      expect(tags).toContain('<link rel="alternate" hreflang="x-default" href="https://shredrgpd.fr/verifier" />');
+    }
+    expect(headTags(pageMeta('/', 'en'))).toContain('hreflang="fr" href="https://shredrgpd.fr/"');
+    expect(headTags(pageMeta('/suivi'))).not.toContain('hreflang');
+    expect(headTags(NOT_FOUND, { noindex: true })).not.toContain('hreflang');
+  });
+
+  it('annonce la langue anglaise et sa propre adresse canonique', () => {
+    const tags = headTags(pageMeta('/lettre', 'en'));
+    expect(tags).toContain('<meta property="og:locale" content="en_GB" />');
+    expect(tags).toContain('<link rel="canonical" href="https://shredrgpd.fr/en/letter" />');
+    expect(headTags(pageMeta('/lettre'))).toContain('content="fr_FR"');
+  });
+
+  it("met les pages anglaises au sitemap et le JSON-LD anglais sur l'accueil anglais", () => {
+    expect(sitemapXml()).toContain('<loc>https://shredrgpd.fr/en/check</loc>');
+    const tags = headTags(pageMeta('/', 'en'));
+    expect(tags).toContain('"inLanguage":"en-GB"');
+    expect(tags).toContain('"url":"https://shredrgpd.fr/en"');
   });
 });
