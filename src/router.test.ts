@@ -68,6 +68,6 @@ describe('version anglaise', () => {
 
   it('écrit le lien dans la langue de la page', () => {
     expect(href('/lettre', { type: 'acces' }, 'en')).toBe('/en/letter#type=acces');
-    expect(href('/suivi', undefined, 'en')).toBe('/suivi');
+    expect(href('/suivi', undefined, 'en')).toBe('/en/tracker');
   });
 });

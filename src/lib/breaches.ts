@@ -293,10 +293,21 @@ const FRENCH: Record<string, string> = {
 };
 
 /**
+ * Types de données en français des fiches manuelles (src/data/manualBreaches.ts), sans
+ * équivalent HIBP : leur libellé anglais. Testé par manualBreaches.test.ts.
+ */
+export const MANUAL_EN: Readonly<Record<string, string>> = {
+  'identifiants de contrat': 'contract IDs',
+  'données techniques de la ligne': 'technical line data',
+  'identifiants France Travail': 'France Travail IDs',
+};
+
+/**
  * Libellé d'un type de données HIBP : traduit en français (l'original si inconnu) ; en anglais,
  * le libellé HIBP en minuscule, sauf les sigles (« IP addresses », « PINs »).
  */
 export function dataClassLabel(dataClass: string, lang: Lang = 'fr'): string {
+  if (lang === 'en' && dataClass in MANUAL_EN) return MANUAL_EN[dataClass]!;
   if (lang === 'en')
     return /^[A-Z]{2}/.test(dataClass) ? dataClass : dataClass.charAt(0).toLowerCase() + dataClass.slice(1);
   return FRENCH[dataClass] ?? dataClass;

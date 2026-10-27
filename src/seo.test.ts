@@ -89,6 +89,11 @@ describe('référencement', () => {
 });
 
 describe('version anglaise', () => {
+  it('traduit toutes les pages', () => {
+    expect(PAGES_EN.length).toBe(PUBLIC_ROUTES.length);
+    for (const route of PUBLIC_ROUTES) expect(pageMeta(route, 'en')).not.toBe(NOT_FOUND_EN);
+  });
+
   it('a une page par adresse anglaise, en anglais', () => {
     expect(PAGES_EN.map((p) => p.path).sort()).toEqual(Object.values(EN_PATHS).sort());
     for (const p of PAGES_EN) expect(p.lang).toBe('en');
@@ -98,7 +103,8 @@ describe('version anglaise', () => {
 
   it('trouve la page anglaise par son chemin français', () => {
     expect(pageMeta('/verifier', 'en').path).toBe('/en/check');
-    expect(pageMeta('/suivi', 'en')).toBe(NOT_FOUND_EN);
+    expect(pageMeta('/suivi', 'en').path).toBe('/en/tracker');
+    expect(pageMeta('/inconnue', 'en')).toBe(NOT_FOUND_EN);
   });
 
   it('écrit en/check.html et en.html', () => {
@@ -114,7 +120,9 @@ describe('version anglaise', () => {
       expect(tags).toContain('<link rel="alternate" hreflang="x-default" href="https://shredrgpd.fr/verifier" />');
     }
     expect(headTags(pageMeta('/', 'en'))).toContain('hreflang="fr" href="https://shredrgpd.fr/"');
-    expect(headTags(pageMeta('/suivi'))).not.toContain('hreflang');
+    expect(headTags({ path: '/fuite/free', title: 'Fuite Free', description: 'x' })).toContain(
+      'hreflang="en" href="https://shredrgpd.fr/en/breach/free"',
+    );
     expect(headTags(NOT_FOUND, { noindex: true })).not.toContain('hreflang');
   });
 
@@ -130,5 +138,14 @@ describe('version anglaise', () => {
     const tags = headTags(pageMeta('/', 'en'));
     expect(tags).toContain('"inLanguage":"en-GB"');
     expect(tags).toContain('"url":"https://shredrgpd.fr/en"');
+  });
+});
+
+describe('pages anglaises : image et flux', () => {
+  it("utilisent l'image d'aperçu et le flux anglais", () => {
+    const tags = headTags(pageMeta('/verifier', 'en'));
+    expect(tags).toContain('content="https://shredrgpd.fr/og-en.png"');
+    expect(tags).toContain('href="/en/breaches.xml"');
+    expect(headTags(pageMeta('/verifier'))).toContain('href="/fuites.xml"');
   });
 });

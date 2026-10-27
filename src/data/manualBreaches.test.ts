@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { pageBreaches, breachSlugs } from '../lib/breachPages';
 import { isValidIsoDate } from '../lib/dates';
+import { dataClassLabel, MANUAL_EN } from '../lib/breaches';
 import { BREACH_EDITORIAL } from './breachEditorial';
+import { BREACH_EDITORIAL_EN } from './breachEditorial.en';
 import { MANUAL_BREACHES } from './manualBreaches';
 
 describe('fuites ajoutées à la main', () => {
@@ -42,5 +44,29 @@ describe('textes rédigés', () => {
   it('respectent le style : tutoiement, sans « veuillez » ni « simplement »', () => {
     const text = JSON.stringify(BREACH_EDITORIAL);
     expect(text).not.toMatch(/veuillez|simplement/i);
+  });
+});
+
+describe('textes rédigés en anglais', () => {
+  it.each(Object.entries(BREACH_EDITORIAL))('%s : même structure que le français', (name, fr) => {
+    const en = BREACH_EDITORIAL_EN[name];
+    expect(en).toBeDefined();
+    expect(en!.concerned?.length ?? 0).toBe(fr.concerned?.length ?? 0);
+    expect(en!.sections.map((s) => s.paragraphs.length)).toEqual(fr.sections.map((s) => s.paragraphs.length));
+    expect(en!.faq.length).toBe(fr.faq.length);
+    expect(en!.sourceLabels.length).toBe(fr.sources.length);
+  });
+
+  it("n'a pas de texte anglais sans texte français", () => {
+    expect(Object.keys(BREACH_EDITORIAL_EN).sort()).toEqual(Object.keys(BREACH_EDITORIAL).sort());
+  });
+
+  it('donne un libellé anglais à chaque type de données des fiches manuelles', () => {
+    for (const b of MANUAL_BREACHES) {
+      for (const dc of b.dataClasses) {
+        // Type HIBP (traduit en français) ou type propre à la fiche (libellé anglais dans MANUAL_EN).
+        expect(dataClassLabel(dc) !== dc || dc in MANUAL_EN).toBe(true);
+      }
+    }
   });
 });

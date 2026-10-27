@@ -4,6 +4,7 @@
  */
 
 import { daysBetween, gdprDeadlines, isValidIsoDate, type IsoDate } from './dates';
+import type { Lang } from './lang';
 import { INITIAL_KINDS, isInitialKind, type InitialKind, type LetterContext } from './letters';
 
 export type Channel = 'email' | 'formulaire' | 'courrier';
@@ -24,6 +25,29 @@ export const CHANNEL_LABELS: Record<Channel, string> = {
   formulaire: 'Formulaire du site',
   courrier: 'Courrier',
 };
+
+export const STATUS_LABELS_EN: Record<Status, string> = {
+  envoyee: 'Sent',
+  prolongee: 'Deadline extended by the company',
+  relancee: 'Followed up',
+  reclamation: 'CNIL complaint filed',
+  satisfaite: 'Satisfied',
+  refusee: 'Refused',
+};
+
+export const CHANNEL_LABELS_EN: Record<Channel, string> = {
+  email: 'Email',
+  formulaire: 'Website form',
+  courrier: 'Post',
+};
+
+export function statusLabel(status: Status, lang: Lang): string {
+  return lang === 'en' ? STATUS_LABELS_EN[status] : STATUS_LABELS[status];
+}
+
+export function channelLabel(channel: Channel, lang: Lang): string {
+  return lang === 'en' ? CHANNEL_LABELS_EN[channel] : CHANNEL_LABELS[channel];
+}
 
 export const KIND_LABELS = Object.fromEntries(
   Object.entries(INITIAL_KINDS).map(([kind, { label }]) => [kind, label]),
@@ -118,6 +142,42 @@ export function serializeExport(requests: TrackedRequest[], exportedOn: IsoDate)
 
 export class ImportError extends Error {}
 
+/** Messages d'erreur de l'import, dans la langue de la page. */
+const IMPORT_ERRORS = {
+  fr: {
+    where: (n: number) => `Demande n° ${n}`,
+    format: 'format invalide',
+    id: 'identifiant manquant',
+    site: 'site manquant',
+    kind: 'type inconnu',
+    channel: 'canal inconnu',
+    date: "date d'envoi invalide",
+    status: 'statut inconnu',
+    json: "Ce fichier n'est pas du JSON valide.",
+    notExport: "Ce fichier n'est pas un export de suivi ShredRGPD.",
+    version: (v: string) => `Version d'export non prise en charge : ${v}.`,
+    noList: 'La liste des demandes est absente.',
+    duplicates: 'Le fichier contient des identifiants en double.',
+    sep: ' : ',
+  },
+  en: {
+    where: (n: number) => `Request no. ${n}`,
+    format: 'invalid format',
+    id: 'missing identifier',
+    site: 'missing website',
+    kind: 'unknown type',
+    channel: 'unknown channel',
+    date: 'invalid sending date',
+    status: 'unknown status',
+    json: 'This file is not valid JSON.',
+    notExport: 'This file is not a ShredRGPD tracker export.',
+    version: (v: string) => `Unsupported export version: ${v}.`,
+    noList: 'The list of requests is missing.',
+    duplicates: 'The file contains duplicate identifiers.',
+    sep: ': ',
+  },
+};
+
 const CHANNELS: readonly string[] = Object.keys(CHANNEL_LABELS);
 const STATUSES: readonly string[] = Object.keys(STATUS_LABELS);
 
@@ -125,16 +185,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function parseRequest(value: unknown, index: number): TrackedRequest {
-  const where = `Demande n° ${index + 1}`;
-  if (!isRecord(value)) throw new ImportError(`${where} : format invalide.`);
+function parseRequest(value: unknown, index: number, lang: Lang): TrackedRequest {
+  const m = IMPORT_ERRORS[lang];
+  const fail = (reason: string) => new ImportError(`${m.where(index + 1)}${m.sep}${reason}.`);
+  if (!isRecord(value)) throw fail(m.format);
   const { id, site, kind, channel, sentOn, status, notes, letters, context } = value;
-  if (typeof id !== 'string' || !id) throw new ImportError(`${where} : identifiant manquant.`);
-  if (typeof site !== 'string' || !site.trim()) throw new ImportError(`${where} : site manquant.`);
-  if (!isInitialKind(kind)) throw new ImportError(`${where} : type inconnu.`);
-  if (typeof channel !== 'string' || !CHANNELS.includes(channel)) throw new ImportError(`${where} : canal inconnu.`);
-  if (!isValidIsoDate(sentOn)) throw new ImportError(`${where} : date d'envoi invalide.`);
-  if (typeof status !== 'string' || !STATUSES.includes(status)) throw new ImportError(`${where} : statut inconnu.`);
+  if (typeof id !== 'string' || !id) throw fail(m.id);
+  if (typeof site !== 'string' || !site.trim()) throw fail(m.site);
+  if (!isInitialKind(kind)) throw fail(m.kind);
+  if (typeof channel !== 'string' || !CHANNELS.includes(channel)) throw fail(m.channel);
+  if (!isValidIsoDate(sentOn)) throw fail(m.date);
+  if (typeof status !== 'string' || !STATUSES.includes(status)) throw fail(m.status);
   return {
     id,
     site: site.trim(),
@@ -159,23 +220,21 @@ export function withLetter(request: TrackedRequest, letter: SavedLetter): Tracke
   return { ...request, letters: [...(request.letters ?? []), letter] };
 }
 
-export function parseExport(text: string): TrackedRequest[] {
+/** Lit un export ; les messages d'erreur sont dans la langue demandée (français par défaut). */
+export function parseExport(text: string, lang: Lang = 'fr'): TrackedRequest[] {
+  const m = IMPORT_ERRORS[lang];
   let data: unknown;
   try {
     data = JSON.parse(text);
   } catch {
-    throw new ImportError("Ce fichier n'est pas du JSON valide.");
+    throw new ImportError(m.json);
   }
-  if (!isRecord(data) || data.format !== EXPORT_FORMAT) {
-    throw new ImportError("Ce fichier n'est pas un export de suivi ShredRGPD.");
-  }
-  if (data.version !== EXPORT_VERSION) {
-    throw new ImportError(`Version d'export non prise en charge : ${String(data.version)}.`);
-  }
-  if (!Array.isArray(data.requests)) throw new ImportError('La liste des demandes est absente.');
-  const requests = data.requests.map(parseRequest);
+  if (!isRecord(data) || data.format !== EXPORT_FORMAT) throw new ImportError(m.notExport);
+  if (data.version !== EXPORT_VERSION) throw new ImportError(m.version(String(data.version)));
+  if (!Array.isArray(data.requests)) throw new ImportError(m.noList);
+  const requests = data.requests.map((value, index) => parseRequest(value, index, lang));
   const ids = new Set(requests.map((r) => r.id));
-  if (ids.size !== requests.length) throw new ImportError('Le fichier contient des identifiants en double.');
+  if (ids.size !== requests.length) throw new ImportError(m.duplicates);
   return requests;
 }
 

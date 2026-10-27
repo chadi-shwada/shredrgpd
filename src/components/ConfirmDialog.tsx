@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { Icon } from './Icon';
+import { useI18n } from '../i18n';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -18,6 +19,7 @@ interface ConfirmDialogProps {
  */
 export function ConfirmDialog({ open, title, children, confirmLabel, onConfirm, onCancel }: ConfirmDialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
+  const { t } = useI18n();
   const titleId = useId();
   const textId = useId();
 
@@ -55,7 +57,7 @@ export function ConfirmDialog({ open, title, children, confirmLabel, onConfirm, 
         </div>
         <div className="confirm__actions">
           <button type="button" className="btn" onClick={onCancel} autoFocus>
-            Annuler
+            {t('Annuler', 'Cancel')}
           </button>
           <button type="button" className="btn btn--danger-solid" onClick={onConfirm}>
             {confirmLabel}

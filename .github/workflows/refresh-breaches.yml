@@ -1,7 +1,8 @@
 name: Mise à jour de la liste des fuites
 
 # Chaque jour :
-# 1. images : crée l'image de partage des nouvelles fuites françaises
+# 1. images : crée l'image de partage des nouvelles fuites françaises, en français
+#    (public/og/) et en anglais (public/og/en/, --lang en)
 #    (scripts/og-images.mjs --missing, les images existantes ne bougent pas) ;
 # 2. commit : les ajoute à public/og/ sur main, s'il y en a ;
 # 3. redeploy : redéploie le site pour retélécharger le catalogue public de
@@ -48,6 +49,7 @@ jobs:
             exit 1
           fi
           CHROMIUM_PATH="$CHROMIUM_PATH" node scripts/og-images.mjs --missing
+          CHROMIUM_PATH="$CHROMIUM_PATH" node scripts/og-images.mjs --missing --lang en
       - name: Repérer les changements
         id: diff
         run: |

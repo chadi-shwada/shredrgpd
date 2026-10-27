@@ -1,0 +1,33 @@
+WEBVTT
+
+1
+00:00:00.000 --> 00:00:05.000
+Your data leaked. 1,039 known breaches, 27 of them in France. Around them, scraps of masked data: email, password, IBAN, date of birth.
+
+2
+00:00:05.000 --> 00:00:09.300
+An extract from the 2019 Deezer breach goes through the shredder. ShredRGPD: request the erasure of your data. Free, no account, no tracker.
+
+3
+00:00:09.300 --> 00:00:16.100
+01. Check. See what leaked. Search for your email on Have I Been Pwned, tick the breaches: Free, Deezer (company logos, trademarks of their owners). Your email never goes through ShredRGPD.
+
+4
+00:00:16.100 --> 00:00:23.600
+02. Write. Your GDPR letter, in 5 steps, pre-filled from the Free breach, with the right GDPR articles (17.1, 19, 34, 12.3). To copy, send or print.
+
+5
+00:00:23.600 --> 00:00:30.100
+03. Track. The deadline, worked out for you: the company has one month to reply (Article 12(3) GDPR). Deadline passed? A reminder ready, a CNIL complaint.
+
+6
+00:00:30.100 --> 00:00:35.600
+Password. Test it without handing it over. Its SHA-1 hash is computed in your browser; only its first 5 characters go to Pwned Passwords. The comparison happens on your device.
+
+7
+00:00:35.600 --> 00:00:40.100
+Your data stay with you: 0 application server, 0 tracker, 0 account, 100% in your browser.
+
+8
+00:00:40.100 --> 00:00:45.000
+Take back control of your data. shredrgpd.fr. Free, no account. Indicative letter templates, not legal advice.

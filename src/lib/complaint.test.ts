@@ -54,3 +54,26 @@ describe('cnilDossier', () => {
     expect(cnilDossier(req, '2026-04-02')).toContain('Aucune copie gardée');
   });
 });
+
+describe('récapitulatif en anglais', () => {
+  const text = complaintSummary(req, '2026-04-02', 'en');
+
+  it('reprend les mêmes faits, en anglais', () => {
+    expect(text).toContain('Organisation concerned: exemple.test');
+    expect(text).toContain(
+      'On 31 January 2026, I sent this organisation a request for the erasure of my personal data',
+    );
+    expect(text).toContain('based on Article 17 of the GDPR');
+    expect(text).toContain('Article 12(3) of the GDPR expired on 28 February 2026');
+    expect(text).toContain('I sent a reminder');
+    expect(text).toContain('Details: Ticket 42');
+    expect(text).not.toMatch(/organisme|RGPD/);
+  });
+
+  it('prépare le dossier complet en anglais', () => {
+    const dossier = cnilDossier(req, '2026-04-02', 'en');
+    expect(dossier.startsWith('CNIL COMPLAINT FILE')).toBe(true);
+    expect(dossier).toContain('LETTERS SENT (0)');
+    expect(dossier).toContain('DOCUMENTS TO ATTACH');
+  });
+});

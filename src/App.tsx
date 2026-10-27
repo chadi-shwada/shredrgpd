@@ -12,6 +12,7 @@ import { Stats } from './pages/Stats';
 import { Tracker } from './pages/Tracker';
 import { Verify } from './pages/Verify';
 import { WhatToDo } from './pages/WhatToDo';
+import { loadedBreachCatalog } from './breachCatalog';
 import { BREACH_PATH_PREFIX } from './lib/breachPages';
 import { LangProvider } from './i18n';
 import { revealOnScroll } from './reveal';
@@ -64,10 +65,12 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    // Les pages de fuite posent leur titre une fois le catalogue chargé.
-    document.title = route.path.startsWith(BREACH_PATH_PREFIX)
-      ? 'Fuite de données · ShredRGPD'
-      : pageMeta(route.path, route.lang).title;
+    // Les pages de fuite posent leur titre elles-mêmes une fois le catalogue chargé (leur effet
+    // passe avant celui-ci) : titre d'attente seulement tant que le catalogue manque.
+    if (!route.path.startsWith(BREACH_PATH_PREFIX)) document.title = pageMeta(route.path, route.lang).title;
+    else if (!loadedBreachCatalog()) {
+      document.title = route.lang === 'en' ? 'Data breach · ShredRGPD' : 'Fuite de données · ShredRGPD';
+    }
     document.documentElement.lang = route.lang;
     if (first.current) {
       first.current = false;

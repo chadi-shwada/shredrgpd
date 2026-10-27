@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import type { Video } from '../data/videos';
+import { useI18n } from '../i18n';
 import type { Cue } from '../lib/vtt';
 
 /** Regroupe les répliques consécutives d'une même étape, pour la transcription. */
@@ -20,18 +21,22 @@ function groupByStep(cues: readonly Cue[]): { step?: string; lines: string[] }[]
  */
 export function VideoPlayer({ video }: { video: Video }) {
   const titleId = useId();
+  const { t } = useI18n();
   return (
     <figure className="video" aria-labelledby={titleId}>
       <video controls preload="none" playsInline poster={video.poster} aria-labelledby={titleId}>
         <source src={video.src} type="video/mp4" />
-        <track kind="captions" src={video.captions} srcLang="fr" label="Français" />
-        <a href={video.src}>Télécharger la vidéo</a>
+        <VideoTrack video={video} />
+        <a href={video.src}>{t('Télécharger la vidéo', 'Download the video')}</a>
       </video>
       <figcaption>
         <span className="video__title" id={titleId}>
           {video.title}
         </span>
-        <span className="video__meta">{video.duration} · sans son</span>
+        <span className="video__meta">
+          {video.duration} · {t('sans son', 'no sound')}
+          {video.lang === 'en' && ' · on-screen text in French, English subtitles'}
+        </span>
         <VideoTranscript video={video} />
       </figcaption>
     </figure>
@@ -40,9 +45,10 @@ export function VideoPlayer({ video }: { video: Video }) {
 
 /** Transcription repliable sous une vidéo. */
 export function VideoTranscript({ video }: { video: Video }) {
+  const { t } = useI18n();
   return (
     <details className="video__transcript">
-      <summary>Lire la transcription</summary>
+      <summary>{t('Lire la transcription', 'Read the transcript')}</summary>
       {groupByStep(video.cues).map((group, i) =>
         group.step ? (
           <div key={i}>
@@ -56,5 +62,21 @@ export function VideoTranscript({ video }: { video: Video }) {
         ),
       )}
     </details>
+  );
+}
+
+/**
+ * Sous-titres de la vidéo. En anglais, affichés d'office : le texte incrusté à l'image est en
+ * français, les sous-titres le traduisent.
+ */
+export function VideoTrack({ video }: { video: Video }) {
+  return (
+    <track
+      kind="captions"
+      src={video.captions}
+      srcLang={video.lang}
+      label={video.lang === 'en' ? 'English' : 'Français'}
+      default={video.lang === 'en'}
+    />
   );
 }

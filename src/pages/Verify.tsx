@@ -11,7 +11,7 @@ import { PageHead } from '../components/PageHead';
 import { BreachMark } from '../components/BreachMark';
 import { PasswordGenerator } from '../components/PasswordGenerator';
 import { PasteResults } from '../components/PasteResults';
-import { FrenchTag, useI18n } from '../i18n';
+import { useI18n } from '../i18n';
 import { breachPathsByName } from '../lib/breachPages';
 import {
   dataClassLabel,
@@ -294,7 +294,7 @@ function Stepper({
  */
 function BreachFlow({ mode, catalog }: { mode: 'verifier' | 'message'; catalog: BreachCatalog | null }) {
   const id = useId();
-  const { t, lang, link } = useI18n();
+  const { t, lang, link, localize } = useI18n();
   const steps =
     mode === 'verifier'
       ? [
@@ -766,9 +766,8 @@ function BreachFlow({ mode, catalog }: { mode: 'verifier' | 'message'; catalog: 
                         {breachPaths.has(b.name) && (
                           <>
                             {' · '}
-                            <a href={breachPaths.get(b.name)} hrefLang={t(undefined, 'fr')}>
+                            <a href={localize(breachPaths.get(b.name)!)}>
                               {t('Tout savoir sur cette fuite', 'All about this breach')}
-                              {lang === 'en' && <FrenchTag />}
                             </a>
                           </>
                         )}
@@ -911,7 +910,7 @@ function PasswordFlow() {
 
 export function Verify() {
   const id = useId();
-  const { t, lang, link, frenchOnly } = useI18n();
+  const { t, lang, link } = useI18n();
   const route = useRoute();
   const situation = asSituation(route.query.get('parcours'));
   const setSituation = (value: Situation) =>
@@ -998,10 +997,7 @@ export function Verify() {
                 "Garde des preuves avant tout : captures d'écran datées et adresse exacte des pages. Les démarches selon la donnée exposée sont sur la page ",
                 'Keep evidence first: dated screenshots and the exact address of the pages. The steps for each type of exposed data are on the page ',
               )}
-              <a href={link('/que-faire')}>
-                {t('Que faire ?', 'What to do?')}
-                {frenchOnly('/que-faire') && <FrenchTag />}
-              </a>
+              <a href={link('/que-faire')}>{t('Que faire ?', 'What to do?')}</a>
             </p>
           </section>
         )}

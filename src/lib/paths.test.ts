@@ -10,6 +10,7 @@ describe('adresses anglaises', () => {
 
   it('une adresse en /en/… sans page anglaise est une page inconnue, en anglais', () => {
     expect(resolvePath('/en/suivi')).toEqual({ path: UNKNOWN_EN_PATH, lang: 'en' });
+    expect(resolvePath('/en/breach')).toEqual({ path: UNKNOWN_EN_PATH, lang: 'en' });
     // « /entreprise » ne commence pas par le préfixe /en/.
     expect(resolvePath('/entreprise')).toEqual({ path: '/entreprise', lang: 'fr' });
   });
@@ -20,10 +21,16 @@ describe('adresses anglaises', () => {
     expect(localizePath('/lettre', 'fr')).toBe('/lettre');
   });
 
-  it('garde le chemin français pour une page sans version anglaise', () => {
-    expect(localizePath('/suivi', 'en')).toBe('/suivi');
-    expect(hasEnglish('/suivi')).toBe(false);
-    expect(hasEnglish('/que-faire')).toBe(true);
+  it('traduit les pages de fuite', () => {
+    expect(resolvePath('/en/breach/free')).toEqual({ path: '/fuite/free', lang: 'en' });
+    expect(localizePath('/fuite/free', 'en')).toBe('/en/breach/free');
+    expect(hasEnglish('/fuite/free')).toBe(true);
+  });
+
+  it('garde le chemin tel quel pour une adresse inconnue', () => {
+    expect(localizePath('/inconnue', 'en')).toBe('/inconnue');
+    expect(hasEnglish('/inconnue')).toBe(false);
+    expect(hasEnglish('/suivi')).toBe(true);
   });
 
   it('a des chemins anglais uniques, tous sous /en', () => {

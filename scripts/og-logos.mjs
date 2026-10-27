@@ -136,34 +136,38 @@ export function decodeLogo(bytes) {
 
 function main() {
   const root = fileURLToPath(new URL('..', import.meta.url));
-  const marksFile = `${root}public/og/marks.json`;
   const manifestFile = `${root}src/data/breach-logos.generated.json`;
-  const out = `${root}public/og-logo`;
-  rmSync(out, { recursive: true, force: true });
-  if (!existsSync(marksFile) || !existsSync(manifestFile)) {
-    console.log('[og-logos] Pas de logos ou de positions : images de partage sans logo.');
-    return;
-  }
-  const marks = JSON.parse(readFileSync(marksFile, 'utf8'));
-  const logos = JSON.parse(readFileSync(manifestFile, 'utf8'));
-  mkdirSync(out, { recursive: true });
-  let n = 0;
-  for (const [slug, mark] of Object.entries(marks)) {
-    const entry = logos[mark.name];
-    const basePath = `${root}public/og/${slug}.jpg`;
-    if (!entry || !existsSync(basePath)) continue;
-    try {
-      const logo = decodeLogo(readFileSync(`${root}public${entry.src}`));
-      if (!logo) continue;
-      const base = jpeg.decode(readFileSync(basePath), { useTArray: true, formatAsRGBA: true });
-      compositeLogo(base, mark, logo, entry.light ? DARK_BG : LIGHT_BG);
-      writeFileSync(`${out}/${slug}.jpg`, jpeg.encode(base, 86).data);
-      n++;
-    } catch (error) {
-      console.warn(`[og-logos] ${slug} ignoré : ${error.message}.`);
+  rmSync(`${root}public/og-logo`, { recursive: true, force: true });
+  // Images françaises (public/og/) et anglaises (public/og/en/), chacune avec ses positions.
+  let total = 0;
+  for (const dir of ['', 'en/']) {
+    const marksFile = `${root}public/og/${dir}marks.json`;
+    if (!existsSync(marksFile) || !existsSync(manifestFile)) continue;
+    const marks = JSON.parse(readFileSync(marksFile, 'utf8'));
+    const logos = JSON.parse(readFileSync(manifestFile, 'utf8'));
+    const out = `${root}public/og-logo/${dir}`;
+    mkdirSync(out, { recursive: true });
+    for (const [slug, mark] of Object.entries(marks)) {
+      const entry = logos[mark.name];
+      const basePath = `${root}public/og/${dir}${slug}.jpg`;
+      if (!entry || !existsSync(basePath)) continue;
+      try {
+        const logo = decodeLogo(readFileSync(`${root}public${entry.src}`));
+        if (!logo) continue;
+        const base = jpeg.decode(readFileSync(basePath), { useTArray: true, formatAsRGBA: true });
+        compositeLogo(base, mark, logo, entry.light ? DARK_BG : LIGHT_BG);
+        writeFileSync(`${out}${slug}.jpg`, jpeg.encode(base, 86).data);
+        total++;
+      } catch (error) {
+        console.warn(`[og-logos] ${dir}${slug} ignoré : ${error.message}.`);
+      }
     }
   }
-  console.log(`[og-logos] ${n} images de partage avec logo.`);
+  console.log(
+    total > 0
+      ? `[og-logos] ${total} images de partage avec logo.`
+      : '[og-logos] Pas de logos ou de positions : images de partage sans logo.',
+  );
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

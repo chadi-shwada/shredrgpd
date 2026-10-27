@@ -6,13 +6,17 @@ import { ShredBurst } from '../components/ShredBurst';
 import { Icon } from '../components/Icon';
 import { Notice } from '../components/Notice';
 import { PageHead } from '../components/PageHead';
+import { LetterLanguage } from '../components/LetterLanguage';
+import { useI18n } from '../i18n';
 import { CNIL_COMPLAINT_URL, cnilDossier, complaintSummary } from '../lib/complaint';
-import { formatLongFr, isValidIsoDate, todayIso } from '../lib/dates';
+import { formatLong, isValidIsoDate, todayIso } from '../lib/dates';
 import { buildIcs } from '../lib/ics';
+import type { Lang } from '../lib/lang';
 import { slugify } from '../lib/slug';
-import { CONTEXT_LABELS, type InitialKind, type LetterContext } from '../lib/letters';
+import { CONTEXT_LABELS, CONTEXT_LABELS_EN, kindLabel, type InitialKind, type LetterContext } from '../lib/letters';
 import {
   CHANNEL_LABELS,
+  channelLabel,
   ImportError,
   KIND_LABELS,
   mergeRequests,
@@ -22,24 +26,40 @@ import {
   sortRequests,
   stateOf,
   STATUS_LABELS,
+  statusLabel,
   type Channel,
   type RequestState,
   type Status,
   type TrackedRequest,
   type Urgency,
 } from '../lib/tracking';
-import { href } from '../router';
 import { useTracking } from '../useTracking';
 
-const URGENCY_LABELS: Record<Urgency, string> = {
-  depassee: 'Délai dépassé',
-  bientot: 'Échéance proche',
-  'en-cours': 'En attente',
-  close: 'Close',
+const URGENCY_LABELS: Record<Lang, Record<Urgency, string>> = {
+  fr: {
+    depassee: 'Délai dépassé',
+    bientot: 'Échéance proche',
+    'en-cours': 'En attente',
+    close: 'Close',
+  },
+  en: {
+    depassee: 'Deadline passed',
+    bientot: 'Deadline soon',
+    'en-cours': 'Waiting',
+    close: 'Closed',
+  },
 };
 
-function urgencyText(state: RequestState): string {
-  if (state.urgency === 'close') return URGENCY_LABELS.close;
+function urgencyText(state: RequestState, lang: Lang): string {
+  if (state.urgency === 'close') return URGENCY_LABELS[lang].close;
+  if (lang === 'en') {
+    if (state.daysLeft < 0) {
+      const days = -state.daysLeft;
+      return `${days} day${days > 1 ? 's' : ''} overdue`;
+    }
+    if (state.daysLeft === 0) return 'Due today';
+    return `${state.daysLeft} day${state.daysLeft > 1 ? 's' : ''} left`;
+  }
   if (state.daysLeft < 0) {
     const days = -state.daysLeft;
     return `Dépassé de ${days} jour${days > 1 ? 's' : ''}`;
@@ -69,7 +89,10 @@ const emptyDraft = (): Draft => ({
 type Feedback = { tone: 'ok' | 'warn' | 'danger'; text: string } | null;
 
 export function Tracker() {
+  const { t, lang, link } = useI18n();
   const { requests, update, saveFailed } = useTracking();
+  /** Langue du récapitulatif de plainte : français par défaut (formulaire de la CNIL en français). */
+  const [complaintLang, setComplaintLang] = useState<Lang>('fr');
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [draftError, setDraftError] = useState('');
   const [feedback, setFeedback] = useState<Feedback>(null);
@@ -94,11 +117,11 @@ export function Tracker() {
   const onAdd = (event: FormEvent) => {
     event.preventDefault();
     if (!draft.site.trim()) {
-      setDraftError('Indique le site concerné.');
+      setDraftError(t('Indique le site concerné.', 'Enter the website concerned.'));
       return;
     }
     if (!isValidIsoDate(draft.sentOn)) {
-      setDraftError("Indique une date d'envoi valide.");
+      setDraftError(t("Indique une date d'envoi valide.", 'Enter a valid sending date.'));
       return;
     }
     update((list) => [
@@ -115,7 +138,10 @@ export function Tracker() {
       },
     ]);
     setDraft(emptyDraft());
-    setFeedback({ tone: 'ok', text: `Demande à ${draft.site.trim()} ajoutée.` });
+    setFeedback({
+      tone: 'ok',
+      text: t(`Demande à ${draft.site.trim()} ajoutée.`, `Request to ${draft.site.trim()} added.`),
+    });
   };
 
   /** Demande tout juste passée en « Satisfaite » : petite fête, rejouée à chaque fois. */
@@ -131,30 +157,45 @@ export function Tracker() {
 
   const remove = (request: TrackedRequest) => {
     update((list) => list.filter((r) => r.id !== request.id));
-    setFeedback({ tone: 'ok', text: `Demande à ${request.site} supprimée.` });
+    setFeedback({
+      tone: 'ok',
+      text: t(`Demande à ${request.site} supprimée.`, `Request to ${request.site} deleted.`),
+    });
   };
 
   const onReminder = (request: TrackedRequest, deadline: string) => {
     const ics = buildIcs({
       uid: request.id,
       date: deadline,
-      summary: `Échéance RGPD : ${request.site}`,
-      description: `Demande (${KIND_LABELS[request.kind].toLowerCase()}) envoyée le ${formatLongFr(request.sentOn)}. Sans réponse satisfaisante, prépare une relance depuis le suivi de ShredRGPD.`,
+      summary: t(`Échéance RGPD : ${request.site}`, `GDPR deadline: ${request.site}`),
+      description: t(
+        `Demande (${KIND_LABELS[request.kind].toLowerCase()}) envoyée le ${formatLong(request.sentOn, 'fr')}. Sans réponse satisfaisante, prépare une relance depuis le suivi de ShredRGPD.`,
+        `Request (${kindLabel(request.kind, 'en').toLowerCase()}) sent on ${formatLong(request.sentOn, 'en')}. Without a satisfactory reply, prepare a reminder from the ShredRGPD tracker.`,
+      ),
     });
-    downloadText(`shred-echeance-${slugify(request.site)}.ics`, ics, 'text/calendar');
+    downloadText(`shred-${t('echeance', 'deadline')}-${slugify(request.site)}.ics`, ics, 'text/calendar');
   };
 
   const onCopyComplaint = async (text: string) => {
     const ok = await copyText(text);
     setFeedback(
       ok
-        ? { tone: 'ok', text: 'Récapitulatif copié. Colle-le dans le formulaire de plainte de la CNIL.' }
-        : { tone: 'warn', text: 'La copie a échoué. Sélectionne le texte à la main.' },
+        ? {
+            tone: 'ok',
+            text: t(
+              'Récapitulatif copié. Colle-le dans le formulaire de plainte de la CNIL.',
+              'Summary copied. Paste it into the CNIL complaint form.',
+            ),
+          }
+        : {
+            tone: 'warn',
+            text: t('La copie a échoué. Sélectionne le texte à la main.', 'Copying failed. Select the text by hand.'),
+          },
     );
   };
 
   const onExport = () => {
-    downloadText(`shred-suivi-${today}.json`, serializeExport(requests, today), 'application/json');
+    downloadText(`shred-${t('suivi', 'tracker')}-${today}.json`, serializeExport(requests, today), 'application/json');
   };
 
   const onImport = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -162,23 +203,28 @@ export function Tracker() {
     event.target.value = '';
     if (!file) return;
     try {
-      const imported = parseExport(await file.text());
+      const imported = parseExport(await file.text(), lang);
       update((list) => mergeRequests(list, imported));
+      const n = imported.length;
       setFeedback({
         tone: 'ok',
-        text: `${imported.length} demande${imported.length > 1 ? 's' : ''} importée${imported.length > 1 ? 's' : ''}.`,
+        text: t(
+          `${n} demande${n > 1 ? 's' : ''} importée${n > 1 ? 's' : ''}.`,
+          `${n} request${n > 1 ? 's' : ''} imported.`,
+        ),
       });
     } catch (error) {
       setFeedback({
         tone: 'danger',
-        text: error instanceof ImportError ? error.message : 'Impossible de lire ce fichier.',
+        text:
+          error instanceof ImportError ? error.message : t('Impossible de lire ce fichier.', 'Cannot read this file.'),
       });
     }
   };
 
   const onClear = () => {
     update(() => []);
-    setFeedback({ tone: 'ok', text: 'Suivi effacé.' });
+    setFeedback({ tone: 'ok', text: t('Suivi effacé.', 'Tracker cleared.') });
   };
 
   const confirmDelete = () => {
@@ -190,19 +236,24 @@ export function Tracker() {
   return (
     <>
       <PageHead
-        eyebrow="Suivi"
-        command={{ input: 'shredrgpd suivi --echeances', output: 'délai légal : 1 mois (art. 12.3)' }}
-        title="Tes demandes en cours"
+        eyebrow={t('Suivi', 'Tracker')}
+        command={{
+          input: t('shredrgpd suivi --echeances', 'shredrgpd track --deadlines'),
+          output: t('délai légal : 1 mois (art. 12.3)', 'legal deadline: 1 month (art. 12(3))'),
+        }}
+        title={t('Tes demandes en cours', 'Your open requests')}
       >
-        Le site a un mois pour te répondre à compter de la réception (article 12.3 du RGPD), trois s'il t'a prévenu
-        d'une prolongation. Le suivi reste dans ce navigateur.
+        {t(
+          "Le site a un mois pour te répondre à compter de la réception (article 12.3 du RGPD), trois s'il t'a prévenu d'une prolongation. Le suivi reste dans ce navigateur.",
+          'The company has one month to reply from receipt (Article 12(3) GDPR), three if it told you it is extending the deadline. The tracker stays in this browser.',
+        )}
       </PageHead>
 
       <div className="container page-body">
-        <div className="stats" role="group" aria-label="Résumé">
+        <div className="stats" role="group" aria-label={t('Résumé', 'Summary')}>
           {(['depassee', 'bientot', 'en-cours', 'close'] as const).map((u) => (
             <div className={`stat stat--${u}`} key={u}>
-              <span className="stat__label">{URGENCY_LABELS[u]}</span>
+              <span className="stat__label">{URGENCY_LABELS[lang][u]}</span>
               <span className="stat__value">{counts[u]}</span>
             </div>
           ))}
@@ -212,23 +263,25 @@ export function Tracker() {
           <div className="tracker__side">
             <form className="card" onSubmit={onAdd} noValidate aria-labelledby={fieldId('addTitle')}>
               <h2 className="card__title" id={fieldId('addTitle')}>
-                Ajouter une demande
+                {t('Ajouter une demande', 'Add a request')}
               </h2>
               <div className="field">
-                <label htmlFor={fieldId('site')}>Site ou entreprise</label>
+                <label htmlFor={fieldId('site')}>{t('Site ou entreprise', 'Website or company')}</label>
                 <input
                   id={fieldId('site')}
                   className="input"
                   value={draft.site}
                   onChange={setField('site')}
-                  placeholder="exemple.com"
+                  placeholder={t('exemple.com', 'example.com')}
                   autoComplete="off"
                   spellCheck={false}
-                  aria-invalid={draftError.startsWith('Indique le site') || undefined}
+                  aria-invalid={
+                    draftError === t('Indique le site concerné.', 'Enter the website concerned.') || undefined
+                  }
                 />
               </div>
               <div className="field">
-                <label htmlFor={fieldId('context')}>Situation</label>
+                <label htmlFor={fieldId('context')}>{t('Situation', 'Situation')}</label>
                 <select
                   id={fieldId('context')}
                   className="select"
@@ -238,27 +291,30 @@ export function Tracker() {
                 >
                   {(Object.keys(CONTEXT_LABELS) as LetterContext[]).map((c) => (
                     <option key={c} value={c}>
-                      {CONTEXT_LABELS[c].label}
+                      {(lang === 'en' ? CONTEXT_LABELS_EN : CONTEXT_LABELS)[c].label}
                     </option>
                   ))}
                 </select>
                 <p className="hint" id={fieldId('contextHint')}>
-                  La relance reprendra les articles adaptés à ta situation.
+                  {t(
+                    'La relance reprendra les articles adaptés à ta situation.',
+                    'The reminder will cite the articles that fit your situation.',
+                  )}
                 </p>
               </div>
               <div className="field-row">
                 <div className="field">
-                  <label htmlFor={fieldId('kind')}>Type</label>
+                  <label htmlFor={fieldId('kind')}>{t('Type', 'Type')}</label>
                   <select id={fieldId('kind')} className="select" value={draft.kind} onChange={setField('kind')}>
                     {(Object.keys(KIND_LABELS) as InitialKind[]).map((k) => (
                       <option key={k} value={k}>
-                        {KIND_LABELS[k]}
+                        {kindLabel(k, lang)}
                       </option>
                     ))}
                   </select>
                 </div>
                 <div className="field">
-                  <label htmlFor={fieldId('channel')}>Canal</label>
+                  <label htmlFor={fieldId('channel')}>{t('Canal', 'Channel')}</label>
                   <select
                     id={fieldId('channel')}
                     className="select"
@@ -267,14 +323,14 @@ export function Tracker() {
                   >
                     {(Object.keys(CHANNEL_LABELS) as Channel[]).map((c) => (
                       <option key={c} value={c}>
-                        {CHANNEL_LABELS[c]}
+                        {channelLabel(c, lang)}
                       </option>
                     ))}
                   </select>
                 </div>
               </div>
               <div className="field">
-                <label htmlFor={fieldId('sentOn')}>Date d'envoi</label>
+                <label htmlFor={fieldId('sentOn')}>{t("Date d'envoi", 'Sending date')}</label>
                 <input
                   id={fieldId('sentOn')}
                   className="input"
@@ -284,19 +340,22 @@ export function Tracker() {
                   aria-describedby={fieldId('sentOnHint')}
                 />
                 <p className="hint" id={fieldId('sentOnHint')}>
-                  Pour un courrier recommandé, mets plutôt la date de réception indiquée sur l'avis.
+                  {t(
+                    "Pour un courrier recommandé, mets plutôt la date de réception indiquée sur l'avis.",
+                    'For a registered letter, use the date of receipt shown on the acknowledgement instead.',
+                  )}
                 </p>
               </div>
               <div className="field">
                 <label htmlFor={fieldId('notes')}>
-                  Notes <span className="optional">(facultatif)</span>
+                  {t('Notes', 'Notes')} <span className="optional">{t('(facultatif)', '(optional)')}</span>
                 </label>
                 <textarea
                   id={fieldId('notes')}
                   className="textarea"
                   value={draft.notes}
                   onChange={setField('notes')}
-                  placeholder="N° de ticket, réponse reçue…"
+                  placeholder={t('N° de ticket, réponse reçue…', 'Ticket number, reply received…')}
                 />
               </div>
               {draftError && (
@@ -306,23 +365,26 @@ export function Tracker() {
               )}
               <button type="submit" className="btn btn--primary">
                 <Icon name="plus" size={18} />
-                Ajouter
+                {t('Ajouter', 'Add')}
               </button>
             </form>
 
             <div className="card">
-              <h2 className="card__title">Sauvegarde</h2>
+              <h2 className="card__title">{t('Sauvegarde', 'Backup')}</h2>
               <p className="small muted">
-                Le suivi vit dans ce navigateur. Exporte-le pour le garder ou le transférer sur un autre appareil.
+                {t(
+                  'Le suivi vit dans ce navigateur. Exporte-le pour le garder ou le transférer sur un autre appareil.',
+                  'The tracker lives in this browser. Export it to keep it or move it to another device.',
+                )}
               </p>
               <div className="btn-row">
                 <button type="button" className="btn btn--sm" onClick={onExport} disabled={requests.length === 0}>
                   <Icon name="download" size={16} />
-                  Exporter
+                  {t('Exporter', 'Export')}
                 </button>
                 <button type="button" className="btn btn--sm" onClick={() => fileInput.current?.click()}>
                   <Icon name="upload" size={16} />
-                  Importer
+                  {t('Importer', 'Import')}
                 </button>
                 <button
                   type="button"
@@ -331,7 +393,7 @@ export function Tracker() {
                   disabled={requests.length === 0}
                 >
                   <Icon name="trash" size={16} />
-                  Tout effacer
+                  {t('Tout effacer', 'Clear all')}
                 </button>
               </div>
               <input
@@ -349,10 +411,13 @@ export function Tracker() {
           <section aria-labelledby={fieldId('listTitle')}>
             <div className="toolbar">
               <h2 id={fieldId('listTitle')}>
-                {requests.length} demande{requests.length > 1 ? 's' : ''}
+                {t(
+                  `${requests.length} demande${requests.length > 1 ? 's' : ''}`,
+                  `${requests.length} request${requests.length !== 1 ? 's' : ''}`,
+                )}
               </h2>
-              <a className="btn btn--sm" href={href('/lettre')}>
-                Écrire une lettre
+              <a className="btn btn--sm" href={link('/lettre')}>
+                {t('Écrire une lettre', 'Write a letter')}
               </a>
             </div>
 
@@ -365,8 +430,10 @@ export function Tracker() {
               {saveFailed && (
                 <Notice tone="warn">
                   <p>
-                    Ton navigateur refuse l'enregistrement local (navigation privée ?). Exporte ton suivi pour le
-                    garder.
+                    {t(
+                      "Ton navigateur refuse l'enregistrement local (navigation privée ?). Exporte ton suivi pour le garder.",
+                      'Your browser refuses local storage (private browsing?). Export your tracker to keep it.',
+                    )}
                   </p>
                 </Notice>
               )}
@@ -380,10 +447,18 @@ export function Tracker() {
                 <p>
                   <strong>
                     {satisfied === 1
-                      ? '1 entreprise a répondu favorablement'
-                      : `${satisfied} entreprises ont répondu favorablement`}
+                      ? t('1 entreprise a répondu favorablement', '1 company replied favourably')
+                      : t(
+                          `${satisfied} entreprises ont répondu favorablement`,
+                          `${satisfied} companies replied favourably`,
+                        )}
                   </strong>
-                  <span>Tu as fait respecter tes droits. Garde leur réponse avec ton suivi.</span>
+                  <span>
+                    {t(
+                      'Tu as fait respecter tes droits. Garde leur réponse avec ton suivi.',
+                      'You enforced your rights. Keep their reply with your tracker.',
+                    )}
+                  </span>
                 </p>
               </div>
             )}
@@ -393,10 +468,15 @@ export function Tracker() {
                 <span className="empty__icon">
                   <Icon name="database" />
                 </span>
-                <h2>Aucune demande pour l'instant</h2>
-                <p>Ajoute une demande déjà envoyée, ou écris ta première lettre.</p>
-                <a className="btn btn--primary" href={href('/lettre')}>
-                  Écrire ma lettre
+                <h2>{t("Aucune demande pour l'instant", 'No request yet')}</h2>
+                <p>
+                  {t(
+                    'Ajoute une demande déjà envoyée, ou écris ta première lettre.',
+                    'Add a request you already sent, or write your first letter.',
+                  )}
+                </p>
+                <a className="btn btn--primary" href={link('/lettre')}>
+                  {t('Écrire ma lettre', 'Write my letter')}
                 </a>
               </div>
             ) : (
@@ -407,49 +487,51 @@ export function Tracker() {
                     <li key={request.id} className="request" data-urgency={state.urgency} data-status={request.status}>
                       <div className="request__head">
                         <h3 className="request__site">{request.site}</h3>
-                        <span className={`badge badge--${state.urgency}`}>{urgencyText(state)}</span>
+                        <span className={`badge badge--${state.urgency}`}>{urgencyText(state, lang)}</span>
                       </div>
                       <dl className="request__meta">
                         <div>
-                          <dt>Type</dt>
-                          <dd>{KIND_LABELS[request.kind]}</dd>
+                          <dt>{t('Type', 'Type')}</dt>
+                          <dd>{kindLabel(request.kind, lang)}</dd>
                         </div>
                         {request.context && (
                           <div>
-                            <dt>Situation</dt>
-                            <dd>{CONTEXT_LABELS[request.context].short}</dd>
+                            <dt>{t('Situation', 'Situation')}</dt>
+                            <dd>{(lang === 'en' ? CONTEXT_LABELS_EN : CONTEXT_LABELS)[request.context].short}</dd>
                           </div>
                         )}
                         <div>
-                          <dt>Canal</dt>
-                          <dd>{CHANNEL_LABELS[request.channel]}</dd>
+                          <dt>{t('Canal', 'Channel')}</dt>
+                          <dd>{channelLabel(request.channel, lang)}</dd>
                         </div>
                         <div>
-                          <dt>Envoyée le</dt>
-                          <dd>{formatLongFr(request.sentOn)}</dd>
+                          <dt>{t('Envoyée le', 'Sent on')}</dt>
+                          <dd>{formatLong(request.sentOn, lang)}</dd>
                         </div>
                         <div>
-                          <dt>Échéance</dt>
-                          <dd>{formatLongFr(state.deadline)}</dd>
+                          <dt>{t('Échéance', 'Deadline')}</dt>
+                          <dd>{formatLong(state.deadline, lang)}</dd>
                         </div>
                       </dl>
                       {request.status === 'satisfaite' && (
                         <p className="request__win">
                           <Icon name="check" size={18} />
-                          Demande satisfaite, bravo !
+                          {t('Demande satisfaite, bravo !', 'Request satisfied, well done!')}
                         </p>
                       )}
                       {celebrate?.id === request.id && <ShredBurst key={celebrate.n} tone="ok" />}
                       {request.notes && <p className="request__notes">{request.notes}</p>}
                       {request.letters && request.letters.length > 0 && (
                         <p className="hint request__letters">
-                          {request.letters.length} lettre{request.letters.length > 1 ? 's' : ''} gardée
-                          {request.letters.length > 1 ? 's' : ''} en copie pour le dossier CNIL
+                          {t(
+                            `${request.letters.length} lettre${request.letters.length > 1 ? 's' : ''} gardée${request.letters.length > 1 ? 's' : ''} en copie pour le dossier CNIL`,
+                            `${request.letters.length} letter${request.letters.length > 1 ? 's' : ''} kept as a copy for the CNIL file`,
+                          )}
                         </p>
                       )}
                       <div className="request__controls">
                         <label className="visually-hidden" htmlFor={`${uid}-status-${request.id}`}>
-                          Statut de la demande à {request.site}
+                          {t(`Statut de la demande à ${request.site}`, `Status of the request to ${request.site}`)}
                         </label>
                         <select
                           id={`${uid}-status-${request.id}`}
@@ -459,14 +541,14 @@ export function Tracker() {
                         >
                           {(Object.keys(STATUS_LABELS) as Status[]).map((s) => (
                             <option key={s} value={s}>
-                              {STATUS_LABELS[s]}
+                              {statusLabel(s, lang)}
                             </option>
                           ))}
                         </select>
                         {state.urgency !== 'close' && (
                           <a
                             className="btn btn--sm"
-                            href={href('/lettre', {
+                            href={link('/lettre', {
                               type: 'relance',
                               site: request.site,
                               depuis: request.sentOn,
@@ -475,7 +557,7 @@ export function Tracker() {
                               ...(request.context && { contexte: request.context }),
                             })}
                           >
-                            Préparer une relance
+                            {t('Préparer une relance', 'Prepare a reminder')}
                           </a>
                         )}
                         {state.urgency !== 'close' && (
@@ -483,10 +565,13 @@ export function Tracker() {
                             type="button"
                             className="btn btn--sm"
                             onClick={() => onReminder(request, state.deadline)}
-                            title="Ajoute l'échéance à ton agenda (fichier .ics)"
+                            title={t(
+                              "Ajoute l'échéance à ton agenda (fichier .ics)",
+                              'Add the deadline to your calendar (.ics file)',
+                            )}
                           >
                             <Icon name="bell" size={16} />
-                            Rappel
+                            {t('Rappel', 'Reminder')}
                           </button>
                         )}
                         {(state.urgency === 'depassee' || request.status === 'relancee') && (
@@ -496,14 +581,17 @@ export function Tracker() {
                             aria-expanded={complaintFor === request.id}
                             onClick={() => setComplaintFor((id) => (id === request.id ? null : request.id))}
                           >
-                            Plainte CNIL
+                            {t('Plainte CNIL', 'CNIL complaint')}
                           </button>
                         )}
                         <button
                           type="button"
                           className="btn btn--sm btn--ghost btn--danger request__delete"
                           onClick={() => setPendingDelete(request)}
-                          aria-label={`Supprimer la demande à ${request.site}`}
+                          aria-label={t(
+                            `Supprimer la demande à ${request.site}`,
+                            `Delete the request to ${request.site}`,
+                          )}
                         >
                           <Icon name="trash" size={16} />
                         </button>
@@ -511,40 +599,47 @@ export function Tracker() {
                       {complaintFor === request.id && (
                         <div className="complaint">
                           <p className="small">
-                            Récapitulatif à coller dans le formulaire de la CNIL. Joins ta demande, ta relance et tes
-                            preuves.
+                            {t(
+                              'Récapitulatif à coller dans le formulaire de la CNIL. Joins ta demande, ta relance et tes preuves.',
+                              'Summary to paste into the CNIL form. Attach your request, your reminder and your evidence.',
+                            )}
                           </p>
+                          <LetterLanguage value={complaintLang} onChange={setComplaintLang} label="summary" />
                           <textarea
                             className="textarea textarea--mono"
                             readOnly
                             rows={9}
-                            value={complaintSummary(request, today)}
-                            aria-label={`Récapitulatif de plainte pour ${request.site}`}
+                            lang={complaintLang}
+                            value={complaintSummary(request, today, complaintLang)}
+                            aria-label={t(
+                              `Récapitulatif de plainte pour ${request.site}`,
+                              `Complaint summary for ${request.site}`,
+                            )}
                           />
                           <div className="btn-row">
                             <button
                               type="button"
                               className="btn btn--sm btn--primary"
-                              onClick={() => onCopyComplaint(complaintSummary(request, today))}
+                              onClick={() => onCopyComplaint(complaintSummary(request, today, complaintLang))}
                             >
                               <Icon name="copy" size={16} />
-                              Copier
+                              {t('Copier', 'Copy')}
                             </button>
                             <button
                               type="button"
                               className="btn btn--sm"
                               onClick={() =>
                                 downloadText(
-                                  `shred-dossier-cnil-${slugify(request.site)}.txt`,
-                                  cnilDossier(request, today),
+                                  `shred-${t('dossier-cnil', 'cnil-file')}-${slugify(request.site)}.txt`,
+                                  cnilDossier(request, today, complaintLang),
                                 )
                               }
                             >
                               <Icon name="download" size={16} />
-                              Dossier complet
+                              {t('Dossier complet', 'Full file')}
                             </button>
                             <ExternalLink href={CNIL_COMPLAINT_URL} className="btn btn--sm">
-                              Adresser une plainte à la CNIL
+                              {t('Adresser une plainte à la CNIL', 'File a complaint with the CNIL')}
                               <Icon name="external" size={16} />
                             </ExternalLink>
                           </div>
@@ -561,20 +656,30 @@ export function Tracker() {
 
       <ConfirmDialog
         open={pendingDelete !== null}
-        title={pendingDelete === 'all' ? 'Effacer tout le suivi ?' : 'Supprimer cette demande ?'}
-        confirmLabel={pendingDelete === 'all' ? 'Tout effacer' : 'Supprimer'}
+        title={
+          pendingDelete === 'all'
+            ? t('Effacer tout le suivi ?', 'Clear the whole tracker?')
+            : t('Supprimer cette demande ?', 'Delete this request?')
+        }
+        confirmLabel={pendingDelete === 'all' ? t('Tout effacer', 'Clear all') : t('Supprimer', 'Delete')}
         onConfirm={confirmDelete}
         onCancel={() => setPendingDelete(null)}
       >
         {pendingDelete === 'all' ? (
           <p>
-            Les {requests.length} demande{requests.length > 1 ? 's' : ''} de ce navigateur seront effacées. Exporte le
-            suivi avant si tu veux le garder.
+            {t(
+              `Les ${requests.length} demande${requests.length > 1 ? 's' : ''} de ce navigateur seront effacées. Exporte le suivi avant si tu veux le garder.`,
+              `The ${requests.length} request${requests.length > 1 ? 's' : ''} in this browser will be deleted. Export the tracker first if you want to keep it.`,
+            )}
           </p>
         ) : pendingDelete ? (
           <p>
-            La demande à <strong>{pendingDelete.site}</strong> sera retirée du suivi de ce navigateur. Ça n'annule pas
-            la demande envoyée à l'entreprise.
+            {t('La demande à ', 'The request to ')}
+            <strong>{pendingDelete.site}</strong>
+            {t(
+              " sera retirée du suivi de ce navigateur. Ça n'annule pas la demande envoyée à l'entreprise.",
+              ' will be removed from the tracker in this browser. This does not cancel the request sent to the company.',
+            )}
           </p>
         ) : null}
       </ConfirmDialog>

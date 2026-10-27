@@ -12,6 +12,7 @@
 import { dataClassLabel, RISKY_DATA_CLASSES, type BreachCatalog } from './breaches';
 import { breachPathsByName, pageBreaches } from './breachPages';
 import { daysBetween, type IsoDate } from './dates';
+import type { Lang } from './lang';
 
 /** Types HIBP comptés comme « données bancaires ». */
 export const BANK_DATA_CLASSES: ReadonlySet<string> = new Set([
@@ -178,22 +179,37 @@ export function computeStats(
   };
 }
 
-/** « 12 % » ; « moins de 1 % » plutôt que « 0 % » quand la part n'est pas nulle. */
-export function formatShare(share: number): string {
+/** « 12 % » ; « moins de 1 % » plutôt que « 0 % » quand la part n'est pas nulle. En anglais : « 12% ». */
+export function formatShare(share: number, lang: Lang = 'fr'): string {
+  if (lang === 'en') return share > 0 && share < 0.005 ? 'less than 1%' : `${Math.round(share * 100)}%`;
   if (share > 0 && share < 0.005) return 'moins de 1 %';
   return `${Math.round(share * 100)} %`;
 }
 
-/** « 56,3 millions », « 940 000 », « 1,2 milliard ». */
-export function formatBigCount(n: number): string {
+/** « 56,3 millions », « 940 000 », « 1,2 milliard » ; en anglais « 56.3 million », « 940,000 ». */
+export function formatBigCount(n: number, lang: Lang = 'fr'): string {
+  if (lang === 'en') {
+    const fmt = (x: number) => new Intl.NumberFormat('en-GB', { maximumFractionDigits: 1 }).format(x);
+    if (n >= 1e9) return `${fmt(n / 1e9)} billion`;
+    if (n >= 1e6) return `${fmt(n / 1e6)} million`;
+    return new Intl.NumberFormat('en-GB').format(n);
+  }
   const fmt = (x: number) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(x);
   if (n >= 1e9) return `${fmt(n / 1e9)} milliard${n >= 2e9 ? 's' : ''}`;
   if (n >= 1e6) return `${fmt(n / 1e6)} million${n >= 2e6 ? 's' : ''}`;
   return new Intl.NumberFormat('fr-FR').format(n);
 }
 
-/** Délai lisible : « 12 jours », « 7 mois », « 2 ans et 3 mois ». */
-export function formatDelay(days: number): string {
+/** Délai lisible : « 12 jours », « 7 mois », « 2 ans et 3 mois » ; en anglais « 12 days », « 2 years and 3 months ». */
+export function formatDelay(days: number, lang: Lang = 'fr'): string {
+  if (lang === 'en') {
+    if (days < 60) return `${days} day${days > 1 ? 's' : ''}`;
+    const months = Math.round(days / 30.44);
+    if (months < 24) return `${months} months`;
+    const y = Math.floor(months / 12);
+    const m = months % 12;
+    return `${y} years${m ? ` and ${m} month${m > 1 ? 's' : ''}` : ''}`;
+  }
   if (days < 60) return `${days} jour${days > 1 ? 's' : ''}`;
   const months = Math.round(days / 30.44);
   if (months < 24) return `${months} mois`;

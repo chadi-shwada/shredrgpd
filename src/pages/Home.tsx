@@ -6,9 +6,9 @@ import { ScrambleText } from '../components/ScrambleText';
 import { ShredSheet } from '../components/ShredSheet';
 import { VerifyMock } from '../components/VerifyMock';
 import { ShowcaseVideo } from '../components/ShowcaseVideo';
-import { PRESENTATION } from '../data/videos';
+import { presentation } from '../data/videos';
 import summary from 'virtual:catalog-summary';
-import { FrenchTag, useI18n } from '../i18n';
+import { useI18n } from '../i18n';
 import { formatMonth } from '../lib/breachPages';
 import { dataClassLabel, formatCount, logoNotice, translateDataList } from '../lib/breaches';
 import { riskLabel, riskRule } from '../lib/risk';
@@ -145,7 +145,7 @@ function sample(lang: Lang) {
 }
 
 export function Home() {
-  const { t, lang, link, frenchOnly } = useI18n();
+  const { t, lang, link, localize } = useI18n();
   const { letter: SAMPLE, excerpt: SAMPLE_EXCERPT } = sample(lang);
   const faq = lang === 'en' ? FAQ_EN : FAQ;
   return (
@@ -236,7 +236,7 @@ export function Home() {
             <ul className="recent-breaches">
               {summary.latest.map((b) => (
                 <li key={b.path}>
-                  <a className="start recent-breach" href={b.path} hrefLang={t(undefined, 'fr')}>
+                  <a className="start recent-breach" href={localize(b.path)}>
                     <span className="recent-breach__head">
                       <BreachMark title={b.title} name={b.name} />
                       <strong>{b.title}</strong>
@@ -260,7 +260,6 @@ export function Home() {
                     </span>
                     <span className="start__action">
                       {t('Que faire ?', 'What to do?')}
-                      {lang === 'en' && <FrenchTag />}
                       <Icon name="arrow" size={16} />
                     </span>
                   </a>
@@ -269,14 +268,8 @@ export function Home() {
             </ul>
             <p className="recent-breaches__more">
               <a href={link('/verifier')}>{t('Chercher parmi toutes les fuites', 'Search all breaches')}</a>
-              <a href={link('/chiffres')}>
-                {t('Les fuites en France, en chiffres', 'Breaches in France, in figures')}
-                {frenchOnly('/chiffres') && <FrenchTag />}
-              </a>
-              <a href={link('/nouvelles-fuites')}>
-                {t('Suivre les nouvelles fuites', 'Follow new breaches')}
-                {frenchOnly('/nouvelles-fuites') && <FrenchTag />}
-              </a>
+              <a href={link('/chiffres')}>{t('Les fuites en France, en chiffres', 'Breaches in France, in figures')}</a>
+              <a href={link('/nouvelles-fuites')}>{t('Suivre les nouvelles fuites', 'Follow new breaches')}</a>
             </p>
             <p className="hint recent-breaches__rule">
               {riskRule(lang)} {logoNotice(lang)}
@@ -285,22 +278,21 @@ export function Home() {
         </section>
       )}
 
-      {/* La vidéo montre des textes en français : pas sur la version anglaise. */}
-      {lang === 'fr' && (
-        <section className="section section--tight" aria-labelledby="video">
-          <div className="container">
-            <div className="section__head">
-              <span className="eyebrow">En vidéo</span>
-              <h2 id="video">Vois ShredRGPD en action</h2>
-              <p className="lead">
-                Le principe en 45 secondes, sur de vraies fuites : voir ce qui a fuité, écrire à l'entreprise, suivre le
-                délai.
-              </p>
-            </div>
-            <ShowcaseVideo video={PRESENTATION} />
+      <section className="section section--tight" aria-labelledby="video">
+        <div className="container">
+          <div className="section__head">
+            <span className="eyebrow">{t('En vidéo', 'Video')}</span>
+            <h2 id="video">{t('Vois ShredRGPD en action', 'See ShredRGPD in action')}</h2>
+            <p className="lead">
+              {t(
+                "Le principe en 45 secondes, sur de vraies fuites : voir ce qui a fuité, écrire à l'entreprise, suivre le délai.",
+                'How it works in 45 seconds, on real breaches: see what leaked, write to the company, track the deadline.',
+              )}
+            </p>
           </div>
-        </section>
-      )}
+          <ShowcaseVideo video={presentation(lang)} />
+        </div>
+      </section>
 
       <section className="section section--tight" aria-labelledby="commencer-par">
         <div className="container">

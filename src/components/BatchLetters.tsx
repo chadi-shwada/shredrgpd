@@ -1,7 +1,7 @@
 import { useId, useMemo, useState } from 'react';
 import { copyText, downloadText } from '../browser';
 import { DPO_CONTACTS } from '../data/contacts';
-import { FrenchTag, useI18n } from '../i18n';
+import { useI18n } from '../i18n';
 import type { Breach } from '../lib/breaches';
 import { todayIso } from '../lib/dates';
 import type { Lang } from '../lib/lang';
@@ -19,7 +19,7 @@ const KINDS: InitialKind[] = ['acces', 'effacement', 'fermeture'];
 /** Une lettre par fuite cochée, en une fois, avec ajout groupé au suivi. */
 export function BatchLetters({ breaches }: { breaches: Breach[] }) {
   const id = useId();
-  const { t, lang, link, frenchOnly } = useI18n();
+  const { t, lang, link } = useI18n();
   const [kind, setKind] = useState<InitialKind>('acces');
   const [letterLang, setLetterLang] = useState<Lang>('fr');
   const [fullName, setFullName] = useState('');
@@ -119,7 +119,7 @@ export function BatchLetters({ breaches }: { breaches: Breach[] }) {
           spellCheck={false}
         />
       </div>
-      <LetterLanguage value={letterLang} onChange={setLetterLang} plural />
+      <LetterLanguage value={letterLang} onChange={setLetterLang} label="letters" />
 
       {letters.length === 0 ? (
         <p className="hint">
@@ -187,11 +187,7 @@ export function BatchLetters({ breaches }: { breaches: Breach[] }) {
             {feedback && (
               <Notice tone="ok">
                 <p>
-                  {feedback}{' '}
-                  <a href={link('/suivi')}>
-                    {t('Voir le suivi', 'See the tracker')}
-                    {frenchOnly('/suivi') && <FrenchTag />}
-                  </a>
+                  {feedback} <a href={link('/suivi')}>{t('Voir le suivi', 'See the tracker')}</a>
                 </p>
               </Notice>
             )}

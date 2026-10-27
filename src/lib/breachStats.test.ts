@@ -184,3 +184,17 @@ describe('formats', () => {
     expect(formatDelay(730)).toBe('2 ans');
   });
 });
+
+describe('formats en anglais', () => {
+  it('écrit parts, grands nombres et délais en anglais', () => {
+    expect(formatShare(0.123, 'en')).toBe('12%');
+    expect(formatShare(0.001, 'en')).toBe('less than 1%');
+    expect(formatBigCount(56_300_000, 'en')).toBe('56.3 million');
+    expect(formatBigCount(1_200_000_000, 'en')).toBe('1.2 billion');
+    expect(formatBigCount(940_000, 'en')).toBe('940,000');
+    expect(formatDelay(12, 'en')).toBe('12 days');
+    expect(formatDelay(1, 'en')).toBe('1 day');
+    expect(formatDelay(213, 'en')).toBe('7 months');
+    expect(formatDelay(822, 'en')).toBe('2 years and 3 months');
+  });
+});

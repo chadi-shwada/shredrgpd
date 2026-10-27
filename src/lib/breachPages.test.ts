@@ -150,3 +150,23 @@ describe('flux Atom', () => {
     expect(breachFeed(odd, 'https://shred.test')).toContain('Fuite A &amp; B &lt;x&gt;');
   });
 });
+
+describe('version anglaise', () => {
+  it('donne une page anglaise à chaque fuite, à son adresse /en/breach/…', () => {
+    const fr = allBreachPageMeta(CATALOG.breaches);
+    const en = allBreachPageMeta(CATALOG.breaches, 'en');
+    expect(en.map((p) => p.path)).toEqual(fr.map((p) => p.path.replace('/fuite/', '/en/breach/')));
+    const free = breachPageMeta(findBreachBySlug(CATALOG.breaches, 'free')!, 'free', 'en');
+    expect(free.title).toBe('Free data breach (Oct 2024): what to do? · ShredRGPD');
+    expect(free.description).toContain('13,926,173 accounts, bank account numbers, names, phone numbers');
+  });
+
+  it('a son flux Atom anglais, vers les pages anglaises', () => {
+    const feed = breachFeed(CATALOG, 'https://shred.test', 30, 'en');
+    expect(feed).toContain('xml:lang="en"');
+    expect(feed).toContain('<title>Free data breach (Oct 2024)</title>');
+    expect(feed).toContain('<link href="https://shred.test/en/breach/free" />');
+    expect(feed).toContain('Exposed data: bank account numbers, names, phone numbers.');
+    expect(feed).toContain('https://shred.test/en/breaches.xml');
+  });
+});

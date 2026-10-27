@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import { AUTHOR, SOURCE_CODE_URL } from '../config';
-import { FrenchTag, useI18n } from '../i18n';
+import { useI18n } from '../i18n';
 import { EN_PREFIX, hasEnglish, localizePath } from '../lib/paths';
 import type { RoutePath } from '../router';
 import { ExternalLink } from './ExternalLink';
@@ -45,14 +45,9 @@ interface LayoutProps {
 }
 
 export function Layout({ path, children }: LayoutProps) {
-  const { t, link, frenchOnly } = useI18n();
+  const { t, link } = useI18n();
   /** Lien de pied de page, marqué « FR » depuis une page anglaise s'il mène à une page française. */
-  const footerLink = (to: RoutePath, label: string, anchor = '') => (
-    <a href={link(to) + anchor}>
-      {label}
-      {frenchOnly(to) && <FrenchTag />}
-    </a>
-  );
+  const footerLink = (to: RoutePath, label: string, anchor = '') => <a href={link(to) + anchor}>{label}</a>;
   const [menuOpen, setMenuOpen] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
 
@@ -122,7 +117,6 @@ export function Layout({ path, children }: LayoutProps) {
                 <li key={item.path}>
                   <a href={link(item.path)} aria-current={path === item.path ? 'page' : undefined}>
                     {t(item.label, item.en)}
-                    {frenchOnly(item.path) && <FrenchTag hidden />}
                   </a>
                 </li>
               ))}
@@ -205,7 +199,6 @@ export function Layout({ path, children }: LayoutProps) {
           <div className="site-footer__legal">
             <a href={`${link('/mentions-legales')}#responsabilite`}>
               {t('Modèles indicatifs, pas un conseil juridique.', 'Indicative templates, not legal advice.')}
-              {frenchOnly('/mentions-legales') && <FrenchTag />}
             </a>
             <span>
               {t('Conçu avec ❤️ par ', 'Made with ❤️ by ')}

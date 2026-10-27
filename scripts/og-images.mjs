@@ -7,6 +7,7 @@
  * Après un build qui a téléchargé le catalogue :
  *   CHROMIUM_PATH=/chemin/vers/chrome node scripts/og-images.mjs            (toutes)
  *   CHROMIUM_PATH=/chemin/vers/chrome node scripts/og-images.mjs --missing  (manquantes)
+ * Avec --lang en : images des pages anglaises (/en/breach/…), en anglais, dans public/og/en/.
  * --missing garde les images existantes à l'octet près : c'est le mode du
  * workflow quotidien (.github/workflows/refresh-breaches.yml), dont le
  * Chromium diffère de celui de l'auteur.
@@ -22,19 +23,21 @@ import { createServer } from 'vite';
 import { chromium } from 'playwright-core';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const out = `${root}public/og`;
-mkdirSync(out, { recursive: true });
 const missingOnly = process.argv.includes('--missing');
+const langIndex = process.argv.indexOf('--lang');
+const lang = langIndex !== -1 && process.argv[langIndex + 1] === 'en' ? 'en' : 'fr';
+const out = lang === 'en' ? `${root}public/og/en` : `${root}public/og`;
+mkdirSync(out, { recursive: true });
 const marksFile = `${out}/marks.json`;
 
 // Charge la logique du site (TypeScript) via Vite, sans la dupliquer.
 const vite = await createServer({ root, server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' });
-const { breachSlugs, pageBreaches } = await vite.ssrLoadModule('/src/lib/breachPages.ts');
+const { breachSlugs, pageBreaches, countUnitLabel } = await vite.ssrLoadModule('/src/lib/breachPages.ts');
 const { parseCatalog, dataClassLabel, formatCount, countUnit, withManualBreaches } =
   await vite.ssrLoadModule('/src/lib/breaches.ts');
 const { MANUAL_BREACHES } = await vite.ssrLoadModule('/src/data/manualBreaches.ts');
-const { breachRisk, RISK_LABELS } = await vite.ssrLoadModule('/src/lib/risk.ts');
-const { formatLongFr } = await vite.ssrLoadModule('/src/lib/dates.ts');
+const { breachRisk, riskLabel } = await vite.ssrLoadModule('/src/lib/risk.ts');
+const { formatLong } = await vite.ssrLoadModule('/src/lib/dates.ts');
 const { SITE_URL } = await vite.ssrLoadModule('/src/config.ts');
 await vite.close();
 
@@ -57,16 +60,30 @@ function page(breach, slug) {
   const risk = breachRisk(breach.dataClasses);
   const [riskBg, riskFg] = RISK_COLORS[risk];
   const h = hue(breach.title);
-  const chips = breach.dataClasses.slice(0, 5).map((dc) => `<span class="chip">${esc(dataClassLabel(dc))}</span>`);
+  const chips = breach.dataClasses
+    .slice(0, 5)
+    .map((dc) => `<span class="chip">${esc(dataClassLabel(dc, lang))}</span>`);
   if (breach.dataClasses.length > 5) chips.push(`<span class="chip">+${breach.dataClasses.length - 5}</span>`);
   const facts = [
-    formatLongFr(breach.date),
-    breach.pwnCount > 0 ? `${formatCount(breach.pwnCount)} ${countUnit(breach)}` : null,
+    formatLong(breach.date, lang),
+    breach.pwnCount > 0 ? `${formatCount(breach.pwnCount, lang)} ${countUnitLabel(countUnit(breach), lang)}` : null,
   ]
     .filter(Boolean)
     .join(' · ');
   const title = breach.title.length > 22 ? 'is-long' : '';
-  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>
+  const text =
+    lang === 'en'
+      ? {
+          eyebrow: 'Data breach · what to do?',
+          title: `${esc(breach.title)} breach`,
+          foot: '<b>Request erasure</b>: free GDPR letter, no account.',
+        }
+      : {
+          eyebrow: 'Fuite de données · que faire ?',
+          title: `Fuite ${esc(breach.title)}`,
+          foot: "<b>Demande l'effacement</b> : lettre RGPD gratuite, sans compte.",
+        };
+  return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><style>
 @font-face{font-family:Inter;src:url(${font('inter', 'inter-latin-wght-normal.woff2')}) format('woff2');font-weight:100 900}
 @font-face{font-family:'JB Mono';src:url(${font('jetbrains-mono', 'jetbrains-mono-latin-wght-normal.woff2')}) format('woff2');font-weight:100 900}
 *{box-sizing:border-box;margin:0}
@@ -90,11 +107,11 @@ h1.is-long{font-size:60px}
 .url{font:600 22px 'JB Mono';color:#8f9dff;white-space:nowrap;flex:none}
 </style></head><body>
 <div class="top">${logo}<span>Shred<span class="rgpd">RGPD</span></span></div>
-<div class="eyebrow">Fuite de données · que faire ?</div>
-<div class="head"><div class="mark">${esc(breach.title.charAt(0).toUpperCase())}</div><h1 class="${title}">Fuite ${esc(breach.title)}</h1></div>
-<div class="facts"><span>${esc(facts)}</span><span class="risk">● ${RISK_LABELS[risk]}</span></div>
+<div class="eyebrow">${text.eyebrow}</div>
+<div class="head"><div class="mark">${esc(breach.title.charAt(0).toUpperCase())}</div><h1 class="${title}">${text.title}</h1></div>
+<div class="facts"><span>${esc(facts)}</span><span class="risk">● ${riskLabel(risk, lang)}</span></div>
 <div class="chips">${chips.join('')}</div>
-<div class="foot"><span><b>Demande l'effacement</b> : lettre RGPD gratuite, sans compte.</span><span class="url">${esc(SITE_URL.replace(/^https:\/\//, ''))}</span></div>
+<div class="foot"><span>${text.foot}</span><span class="url">${esc(SITE_URL.replace(/^https:\/\//, ''))}</span></div>
 </body></html>`;
 }
 
@@ -129,5 +146,5 @@ for (const [slug, breach] of todo) {
 writeFileSync(marksFile, JSON.stringify(marks, null, 2) + '\n');
 await browser.close();
 console.log(
-  `[og-images] ${n} image(s) dans public/og/ (catalogue du ${catalog.fetchedOn ?? 'inconnu'}) : ${todo.map(([s]) => s).join(', ')}.`,
+  `[og-images] ${n} image(s) dans ${out.slice(root.length)}/ (catalogue du ${catalog.fetchedOn ?? 'inconnu'}) : ${todo.map(([s]) => s).join(', ')}.`,
 );

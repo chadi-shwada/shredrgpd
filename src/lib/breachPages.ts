@@ -15,12 +15,13 @@ import {
   type Breach,
   type BreachCatalog,
 } from './breaches';
-import { formatLongFr, type IsoDate } from './dates';
+import { formatLong, formatLongFr, type IsoDate } from './dates';
 import type { Lang } from './lang';
+import { BREACH_PREFIX_FR, localizePath } from './paths';
 import { breachRisk, type RiskLevel } from './risk';
 import { slugify } from './slug';
 
-export const BREACH_PATH_PREFIX = '/fuite/';
+export const BREACH_PATH_PREFIX = BREACH_PREFIX_FR;
 
 /**
  * Fuites qui ont une page : françaises, avec une entreprise identifiée (un
@@ -96,7 +97,31 @@ export interface BreachPageMeta {
   lastmod?: string;
 }
 
-export function breachPageMeta(breach: Breach, slug: string): BreachPageMeta {
+/** « comptes » ou « personnes » dans la langue demandée. */
+export function countUnitLabel(unit: 'comptes' | 'personnes', lang: Lang): string {
+  if (lang === 'fr') return unit;
+  return unit === 'personnes' ? 'people' : 'accounts';
+}
+
+export function breachPageMeta(breach: Breach, slug: string, lang: Lang = 'fr'): BreachPageMeta {
+  if (lang === 'en') {
+    const typesEn = breach.dataClasses
+      .slice(0, 4)
+      .map((dc) => dataClassLabel(dc, 'en'))
+      .join(', ');
+    const accountsEn =
+      breach.pwnCount > 0 ? `${formatCount(breach.pwnCount, 'en')} ${countUnitLabel(countUnit(breach), 'en')}, ` : '';
+    return {
+      path: localizePath(BREACH_PATH_PREFIX + slug, 'en'),
+      title: `${breach.title} data breach (${formatMonth(breach.date, 'en')}): what to do? · ShredRGPD`,
+      description: `${breach.title} data breach of ${formatLong(breach.date, 'en')}: ${accountsEn}${typesEn}. ${
+        breach.verified
+          ? 'Check whether you are affected and ask the company what data it holds about you, with a free GDPR letter.'
+          : 'Breach not confirmed by the company: check whether you are affected and protect your accounts.'
+      }`,
+      ...(breach.addedDate ? { lastmod: breach.addedDate } : {}),
+    };
+  }
   const types = breach.dataClasses
     .slice(0, 4)
     .map((dc) => dataClassLabel(dc))
@@ -115,8 +140,8 @@ export function breachPageMeta(breach: Breach, slug: string): BreachPageMeta {
 }
 
 /** Toutes les pages de fuite, pour le build (HTML, sitemap). */
-export function allBreachPageMeta(breaches: Breach[]): BreachPageMeta[] {
-  return [...breachSlugs(pageBreaches(breaches))].map(([slug, b]) => breachPageMeta(b, slug));
+export function allBreachPageMeta(breaches: Breach[], lang: Lang = 'fr'): BreachPageMeta[] {
+  return [...breachSlugs(pageBreaches(breaches))].map(([slug, b]) => breachPageMeta(b, slug, lang));
 }
 
 /* ---------- Résumé pour l'accueil ---------- */
@@ -174,7 +199,8 @@ const xml = (text: string) =>
  * récente d'abord ; fiche manuelle : date où la fuite a été rendue publique) :
  * on s'abonne sans compte ni e-mail.
  */
-export function breachFeed(catalog: BreachCatalog, siteUrl: string, limit = 30): string {
+export function breachFeed(catalog: BreachCatalog, siteUrl: string, limit = 30, lang: Lang = 'fr'): string {
+  if (lang === 'en') return breachFeedEn(catalog, siteUrl, limit);
   const paths = breachPathsByName(catalog.breaches);
   const entries = pageBreaches(catalog.breaches)
     .map((b) => ({ b, added: b.addedDate ?? b.date }))
@@ -200,6 +226,39 @@ export function breachFeed(catalog: BreachCatalog, siteUrl: string, limit = 30):
   <link href="${xml(siteUrl)}/fuites.xml" rel="self" />
   <link href="${xml(siteUrl)}/" />
   <id>${xml(siteUrl)}/fuites.xml</id>
+  <updated>${updated}</updated>
+${items.join('\n')}
+</feed>
+`;
+}
+
+/** Flux Atom en anglais : mêmes fuites, pages anglaises (/en/breach/…). */
+function breachFeedEn(catalog: BreachCatalog, siteUrl: string, limit: number): string {
+  const paths = breachPathsByName(catalog.breaches);
+  const entries = pageBreaches(catalog.breaches)
+    .map((b) => ({ b, added: b.addedDate ?? b.date }))
+    .sort((x, y) => y.added.localeCompare(x.added))
+    .slice(0, limit);
+  const updated = `${entries[0]?.added ?? catalog.fetchedOn ?? '2026-01-01'}T00:00:00Z`;
+  const items = entries.map(({ b, added }) => {
+    const url = siteUrl + localizePath(paths.get(b.name)!, 'en');
+    const types = b.dataClasses.map((dc) => dataClassLabel(dc, 'en')).join(', ');
+    const accounts = b.pwnCount > 0 ? ` ${formatCount(b.pwnCount, 'en')} ${countUnitLabel(countUnit(b), 'en')}.` : '';
+    return `  <entry>
+    <title>${xml(`${b.title} data breach (${formatMonth(b.date, 'en')})`)}</title>
+    <link href="${xml(url)}" />
+    <id>${xml(url)}</id>
+    <updated>${added}T00:00:00Z</updated>
+    <summary>${xml(`Breach of ${formatLong(b.date, 'en')}.${accounts} Exposed data: ${types}.`)}</summary>
+  </entry>`;
+  });
+  return `<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+  <title>ShredRGPD · Data breaches in France</title>
+  <subtitle>French breaches from the public Have I Been Pwned catalogue (CC BY 4.0) and a few sourced breaches missing from it, with what to do.</subtitle>
+  <link href="${xml(siteUrl)}/en/breaches.xml" rel="self" />
+  <link href="${xml(siteUrl)}/en" />
+  <id>${xml(siteUrl)}/en/breaches.xml</id>
   <updated>${updated}</updated>
 ${items.join('\n')}
 </feed>

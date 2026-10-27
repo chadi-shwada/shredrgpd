@@ -11,6 +11,8 @@ import {
   stateOf,
   STORAGE_KEY,
   withLetter,
+  statusLabel,
+  channelLabel,
   type TrackedRequest,
 } from './tracking';
 
@@ -146,5 +148,20 @@ describe('copies des lettres', () => {
 
   it('reste compatible avec les exports sans lettres', () => {
     expect(parseExport(serializeExport([req()], '2026-10-05'))[0]).not.toHaveProperty('letters');
+  });
+});
+
+describe('import en anglais', () => {
+  it('donne les erreurs dans la langue de la page', () => {
+    expect(() => parseExport('{', 'en')).toThrow('This file is not valid JSON.');
+    const bad = serializeExport([req({ status: 'inconnu' as TrackedRequest['status'] })], '2026-10-05');
+    expect(() => parseExport(bad, 'en')).toThrow('Request no. 1: unknown status.');
+    expect(() => parseExport(bad)).toThrow('Demande n° 1 : statut inconnu.');
+  });
+
+  it('traduit statuts et canaux', () => {
+    expect(statusLabel('prolongee', 'en')).toBe('Deadline extended by the company');
+    expect(channelLabel('courrier', 'en')).toBe('Post');
+    expect(statusLabel('prolongee', 'fr')).toBe('Délai prolongé par le site');
   });
 });

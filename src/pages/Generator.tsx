@@ -6,7 +6,7 @@ import { Icon } from '../components/Icon';
 import { Notice } from '../components/Notice';
 import { PageHead } from '../components/PageHead';
 import { LetterLanguage } from '../components/LetterLanguage';
-import { FrenchTag, useI18n } from '../i18n';
+import { useI18n } from '../i18n';
 import { translateDataList } from '../lib/breaches';
 import { formatLong, gdprDeadlines, isValidIsoDate, todayIso, type IsoDate } from '../lib/dates';
 import type { Lang } from '../lib/lang';
@@ -132,7 +132,7 @@ function firstStep(route: Route): Step {
 }
 
 export function Generator({ route }: { route: Route }) {
-  const { t, lang, link, frenchOnly } = useI18n();
+  const { t, lang, link } = useI18n();
   const [form, setForm] = useState<FormState>(() => initialState(route));
   /** Langue de la lettre, distincte de celle de la page (français par défaut). */
   const [letterLang, setLetterLang] = useState<Lang>('fr');
@@ -917,7 +917,6 @@ export function Generator({ route }: { route: Route }) {
                     </button>
                     <a className="btn btn--ghost" href={link('/suivi')}>
                       {t('Voir mon suivi', 'See my tracker')}
-                      {frenchOnly('/suivi') && <FrenchTag />}
                     </a>
                   </div>
 
@@ -927,10 +926,7 @@ export function Generator({ route }: { route: Route }) {
                         'Pour relier cette relance à ton suivi, lance-la depuis la page ',
                         'To link this reminder to your tracker, start it from the ',
                       )}
-                      <a href={link('/suivi')}>
-                        {t('Suivi', 'Tracker')}
-                        {frenchOnly('/suivi') && <FrenchTag />}
-                      </a>
+                      <a href={link('/suivi')}>{t('Suivi', 'Tracker')}</a>
                       {t('.', ' page.')}
                     </p>
                   )}
@@ -958,10 +954,7 @@ export function Generator({ route }: { route: Route }) {
                       "Modèle indicatif, pas un conseil juridique. Relis la lettre avant de l'envoyer. Certains logiciels de messagerie coupent les textes longs : si c'est le cas, utilise « Copier ». Garde une preuve de l'envoi : le délai d'un mois court à partir de la réception.",
                       'Indicative template, not legal advice. Read the letter again before sending it. Some email apps cut long texts: if so, use “Copy”. Keep proof that you sent it: the one-month period runs from receipt.',
                     )}{' '}
-                    <a href={link('/ressources')}>
-                      {t("Comment l'envoyer", 'How to send it')}
-                      {frenchOnly('/ressources') && <FrenchTag />}
-                    </a>
+                    <a href={link('/ressources')}>{t("Comment l'envoyer", 'How to send it')}</a>
                   </p>
                 </div>
               </div>

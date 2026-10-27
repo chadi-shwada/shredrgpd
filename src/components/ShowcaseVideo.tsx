@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Video } from '../data/videos';
+import { useI18n } from '../i18n';
 import { Icon } from './Icon';
-import { VideoTranscript } from './VideoPlayer';
+import { VideoTrack, VideoTranscript } from './VideoPlayer';
 
 /** Lecture automatique seulement si la personne n'a demandé ni moins d'animations ni moins de données. */
 function canAutoplay(): boolean {
@@ -20,6 +21,7 @@ function canAutoplay(): boolean {
  */
 export function ShowcaseVideo({ video }: { video: Video }) {
   const ref = useRef<HTMLVideoElement>(null);
+  const { t } = useI18n();
   const [auto] = useState(canAutoplay);
   /** Choix de la personne : une pause manuelle n'est pas annulée par le défilement. */
   const [wantsPlay, setWantsPlay] = useState(auto);
@@ -54,17 +56,20 @@ export function ShowcaseVideo({ video }: { video: Video }) {
           playsInline
           preload="none"
           poster={video.poster}
-          aria-label={`${video.title} (vidéo sans son, ${video.duration})`}
+          aria-label={t(
+            `${video.title} (vidéo sans son, ${video.duration})`,
+            `${video.title} (video without sound, ${video.duration})`,
+          )}
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
         >
           <source src={video.src} type="video/mp4" />
-          <track kind="captions" src={video.captions} srcLang="fr" label="Français" />
+          <VideoTrack video={video} />
         </video>
         <button
           type="button"
           className="showcase-video__toggle"
-          aria-label={playing ? 'Mettre la vidéo en pause' : 'Lire la vidéo'}
+          aria-label={playing ? t('Mettre la vidéo en pause', 'Pause the video') : t('Lire la vidéo', 'Play the video')}
           onClick={() => setWantsPlay(!playing)}
         >
           <Icon name={playing ? 'pause' : 'play'} size={18} />
@@ -72,7 +77,10 @@ export function ShowcaseVideo({ video }: { video: Video }) {
       </div>
       <figcaption>
         <span className="video__title">{video.title}</span>
-        <span className="video__meta">{video.duration} · sans son · en boucle</span>
+        <span className="video__meta">
+          {video.duration} · {t('sans son · en boucle', 'no sound · looping')}
+          {video.lang === 'en' && ' · on-screen text in French, English subtitles'}
+        </span>
         <VideoTranscript video={video} />
       </figcaption>
     </figure>

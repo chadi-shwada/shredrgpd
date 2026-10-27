@@ -7,7 +7,20 @@ import { allBreachPageMeta, breachFeed, catalogSummary } from './src/lib/breachP
 import { statsSource } from './src/lib/breachStats';
 import { MANUAL_BREACHES } from './src/data/manualBreaches';
 import { EMPTY_CATALOG, parseCatalog, withManualBreaches, type BreachCatalog } from './src/lib/breaches';
-import { headTags, htmlFileName, NOT_FOUND, pageMeta, PAGES, PAGES_EN, robotsTxt, sitemapXml, type PageMeta } from './src/seo';
+import {
+  FEED_PATH,
+  FEED_PATH_EN,
+  headTags,
+  htmlFileName,
+  NOT_FOUND,
+  pageMeta,
+  PAGES,
+  PAGES_EN,
+  robotsTxt,
+  sitemapXml,
+  type PageMeta,
+} from './src/seo';
+import { BREACH_PREFIX_EN, BREACH_PREFIX_FR } from './src/lib/paths';
 import { CSP_META } from './src/security';
 
 // CSP appliquée au build seulement (le serveur de dev a besoin de scripts en ligne).
@@ -102,15 +115,22 @@ function seo(): Plugin {
       if (!template.includes(SEO_MARKER)) this.error('marqueur SEO absent de index.html');
       if (!template.includes(HTML_LANG)) this.error(`${HTML_LANG} absent de index.html`);
       const catalog = readPageCatalog();
-      // Image d'aperçu par fuite si scripts/og-images.mjs l'a générée ; sinon og.png.
-      const breachPages = allBreachPageMeta(catalog.breaches).map((page) => {
-        const slug = page.path.slice('/fuite/'.length);
-        // Avec logo (scripts/og-logos.mjs, au build) si possible, sinon l'image de base.
-        const image = [`/og-logo/${slug}.jpg`, `/og/${slug}.jpg`].find((path) =>
+      // Image d'aperçu par fuite si scripts/og-images.mjs l'a générée (public/og/, public/og/en/) ;
+      // sinon og.png (og-en.png en anglais). Avec logo (scripts/og-logos.mjs, au build) si possible.
+      const withImage = (page: PageMeta, slug: string, dir: string): PageMeta => {
+        const image = [`/og-logo/${dir}${slug}.jpg`, `/og/${dir}${slug}.jpg`].find((path) =>
           existsSync(new URL(`./public${path}`, import.meta.url)),
         );
         return image ? { ...page, image } : page;
-      });
+      };
+      const breachPages = [
+        ...allBreachPageMeta(catalog.breaches).map((page) =>
+          withImage(page, page.path.slice(BREACH_PREFIX_FR.length), ''),
+        ),
+        ...allBreachPageMeta(catalog.breaches, 'en').map((page) =>
+          withImage({ ...page, lang: 'en' }, page.path.slice(BREACH_PREFIX_EN.length), 'en/'),
+        ),
+      ];
       for (const page of [...PAGES, ...PAGES_EN, ...breachPages]) {
         const html = pageHtml(template, page);
         if (page.path === '/') index.source = html;
@@ -124,7 +144,12 @@ function seo(): Plugin {
       this.emitFile({ type: 'asset', fileName: 'robots.txt', source: robotsTxt() });
       this.emitFile({ type: 'asset', fileName: 'sitemap.xml', source: sitemapXml(breachPages) });
       if (catalog.breaches.length > 0) {
-        this.emitFile({ type: 'asset', fileName: 'fuites.xml', source: breachFeed(catalog, SITE_URL) });
+        this.emitFile({ type: 'asset', fileName: FEED_PATH.slice(1), source: breachFeed(catalog, SITE_URL) });
+        this.emitFile({
+          type: 'asset',
+          fileName: FEED_PATH_EN.slice(1),
+          source: breachFeed(catalog, SITE_URL, 30, 'en'),
+        });
       }
     },
   };

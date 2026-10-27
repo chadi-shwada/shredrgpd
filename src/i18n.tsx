@@ -9,7 +9,7 @@
 
 import { createContext, useContext, type ReactNode } from 'react';
 import { pick, type Lang } from './lib/lang';
-import { hasEnglish } from './lib/paths';
+import { localizePath } from './lib/paths';
 import { href, type RoutePath } from './router';
 
 const LangContext = createContext<Lang>('fr');
@@ -26,10 +26,10 @@ export interface I18n {
   lang: Lang;
   /** Le texte (ou le JSX) de la langue de la page. */
   t: <T>(fr: T, en: T) => T;
-  /** Lien vers une page, dans la langue de la page si elle y existe. */
+  /** Lien vers une page, dans la langue de la page. */
   link: (path: RoutePath, query?: Record<string, string>) => string;
-  /** La page liée n'existe qu'en français alors que la page est en anglais. */
-  frenchOnly: (path: RoutePath) => boolean;
+  /** Chemin interne déjà écrit (« /fuite/free », « /verifier#parcours=… ») dans la langue de la page. */
+  localize: (path: string) => string;
 }
 
 export function useI18n(): I18n {
@@ -38,17 +38,15 @@ export function useI18n(): I18n {
     lang,
     t: (fr, en) => pick(lang, fr, en),
     link: (path, query) => href(path, query, lang),
-    frenchOnly: (path) => lang === 'en' && !hasEnglish(path),
+    localize: (path) => localizePath(path, lang),
   };
 }
 
 /**
- * Marque discrète « FR » après un lien anglais qui mène à une page en français.
- * Le texte lu par les lecteurs d'écran est « (in French) ». `hidden` : seulement pour eux
- * (menu de l'en-tête, où la place manque).
+ * Marque discrète « FR » après un lien de la version anglaise vers un site externe en
+ * français (33700, Signal Spam, sources de presse…). Lue « (in French) ».
  */
-export function FrenchTag({ hidden = false }: { hidden?: boolean }) {
-  if (hidden) return <span className="visually-hidden"> (in French)</span>;
+export function FrenchTag() {
   return (
     <span className="lang-tag">
       <span aria-hidden="true">FR</span>

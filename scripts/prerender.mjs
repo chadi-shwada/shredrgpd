@@ -2,7 +2,7 @@
  * Lancé après « vite build » : écrit le contenu de chaque page dans son fichier HTML de dist/
  * (index.html, verifier.html, fuite/free.html…), à la place de <div id="root"></div>.
  * Le rendu vient du code du site (src/prerender.tsx), chargé par Vite.
- * Le suivi (/suivi) n'est pas pré-rendu : son contenu dépend du navigateur de la personne.
+ * Le suivi (/suivi, /en/tracker) n'est pas pré-rendu : son contenu dépend du navigateur de la personne.
  * Les attributs style sont retirés : la CSP les bloquerait (et le signalerait dans la console).
  */
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
@@ -13,7 +13,7 @@ import { createServer } from 'vite';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const dist = join(root, 'dist');
 const EMPTY_ROOT = '<div id="root"></div>';
-const SKIP = new Set(['suivi.html']);
+const SKIP = new Set(['suivi.html', 'en/tracker.html']);
 
 function htmlFiles(dir) {
   return readdirSync(dir).flatMap((name) => {

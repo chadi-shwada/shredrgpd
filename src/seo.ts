@@ -6,13 +6,13 @@
 
 import { SITE_DESCRIPTION, SITE_DESCRIPTION_EN, SITE_TITLE, SITE_TITLE_EN, SITE_URL } from './config';
 import type { Lang } from './lib/lang';
-import { EN_PATHS, UNKNOWN_EN_PATH } from './lib/paths';
+import { BREACH_PREFIX_EN, BREACH_PREFIX_FR, EN_PATHS, UNKNOWN_EN_PATH } from './lib/paths';
 
 export interface PageMeta {
   path: string;
   title: string;
   description: string;
-  /** Image d'aperçu propre à la page (chemin depuis la racine) ; sinon /og.png. */
+  /** Image d'aperçu propre à la page (chemin depuis la racine) ; sinon /og.png (/og-en.png en anglais). */
   image?: string;
   /** Dernière modification connue (AAAA-MM-JJ), pour le sitemap. */
   lastmod?: string;
@@ -101,7 +101,49 @@ export const PAGES_EN: PageMeta[] = [
     description:
       'Generate an erasure, access, objection or reminder letter, or a notice to the hosting provider, citing the right GDPR articles, in English or French. Free, in your browser.',
   },
+  {
+    path: '/en/tracker',
+    title: 'Track my requests · ShredRGPD',
+    description:
+      'Track your GDPR requests: one-month deadline worked out, calendar reminder, follow-up letter and CNIL complaint summary. Everything stays in your browser.',
+  },
+  {
+    path: '/en/resources',
+    title: 'My rights, step by step · ShredRGPD',
+    description:
+      'How to get your data erased after a breach: evidence, the right contact, sending, follow-up, notice to the hosting provider and complaint to the CNIL.',
+  },
+  {
+    path: '/en/figures',
+    title: 'Data breaches in France: the figures · ShredRGPD',
+    description:
+      'How many breaches hit French companies, which data are exposed, the biggest breaches: figures from the Have I Been Pwned catalogue, updated every day.',
+  },
+  {
+    path: '/en/new-breaches',
+    title: 'Follow new data breaches in France · ShredRGPD',
+    description:
+      'Get every new data breach affecting France in your feed reader (RSS/Atom), with no account and no email. Feed address and free readers.',
+  },
+  {
+    path: '/en/about',
+    title: 'About · ShredRGPD',
+    description:
+      'ShredRGPD helps victims of data breaches exercise their GDPR rights, with no account, no tracker and no breach database.',
+  },
+  {
+    path: '/en/legal-notice',
+    title: 'Legal notice · ShredRGPD',
+    description: 'Publisher, hosting provider and personal data processing of the ShredRGPD website.',
+  },
 ].map((page) => ({ ...page, lang: 'en' as const }));
+
+/** Image d'aperçu par défaut des pages anglaises (texte en anglais). */
+export const DEFAULT_IMAGE_EN = '/og-en.png';
+
+/** Flux Atom des fuites françaises, généré au build (vite.config.ts), en français et en anglais. */
+export const FEED_PATH = '/fuites.xml';
+export const FEED_PATH_EN = '/en/breaches.xml';
 
 export const NOT_FOUND: PageMeta = {
   path: '/404',
@@ -125,10 +167,16 @@ export function pageMeta(path: string, lang: Lang = 'fr'): PageMeta {
   return PAGES.find((p) => p.path === path) ?? NOT_FOUND;
 }
 
-/** Les deux versions d'une page traduite (adresses publiées), sinon null. */
+/** Les deux versions d'une page (adresses publiées), sinon null (page 404). */
 export function alternates(page: PageMeta): { fr: string; en: string } | null {
   for (const [fr, en] of Object.entries(EN_PATHS)) {
     if (page.path === fr || page.path === en) return { fr, en };
+  }
+  if (page.path.startsWith(BREACH_PREFIX_FR)) {
+    return { fr: page.path, en: BREACH_PREFIX_EN + page.path.slice(BREACH_PREFIX_FR.length) };
+  }
+  if (page.path.startsWith(BREACH_PREFIX_EN)) {
+    return { fr: BREACH_PREFIX_FR + page.path.slice(BREACH_PREFIX_EN.length), en: page.path };
   }
   return null;
 }
@@ -144,8 +192,8 @@ const esc = (text: string) =>
 /** Balises <head> d'une page. La page 404 n'a pas d'adresse canonique et n'est pas indexée. */
 export function headTags(page: PageMeta, { noindex = false } = {}): string {
   const url = `${SITE_URL}${page.path === '/' ? '/' : page.path}`;
-  const image = `${SITE_URL}${page.image ?? '/og.png'}`;
   const en = page.lang === 'en';
+  const image = `${SITE_URL}${page.image ?? (en ? DEFAULT_IMAGE_EN : '/og.png')}`;
   const imageAlt = page.image
     ? page.title
     : en
@@ -177,7 +225,9 @@ export function headTags(page: PageMeta, { noindex = false } = {}): string {
     `<meta name="twitter:title" content="${esc(page.title)}" />`,
     `<meta name="twitter:description" content="${esc(page.description)}" />`,
     `<meta name="twitter:image" content="${image}" />`,
-    `<link rel="alternate" type="application/atom+xml" title="Fuites de données en France" href="/fuites.xml" />`,
+    en
+      ? `<link rel="alternate" type="application/atom+xml" title="Data breaches in France" href="${FEED_PATH_EN}" />`
+      : `<link rel="alternate" type="application/atom+xml" title="Fuites de données en France" href="${FEED_PATH}" />`,
     ...((page.path === '/' || page.path === '/en') && !noindex ? [structuredData(page.lang ?? 'fr')] : []),
   ];
   return tags.join('\n    ');

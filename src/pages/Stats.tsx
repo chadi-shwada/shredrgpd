@@ -17,9 +17,10 @@ import {
   type StatBreach,
   type StatsFilter,
 } from '../lib/breachStats';
-import { formatMonthFr } from '../lib/breachPages';
-import { formatLongFr } from '../lib/dates';
-import { href } from '../router';
+import { useI18n } from '../i18n';
+import { formatMonth } from '../lib/breachPages';
+import { formatLong } from '../lib/dates';
+import type { Lang } from '../lib/lang';
 
 const ALL = source.breaches;
 const YEARS = yearSpan(ALL);
@@ -65,7 +66,9 @@ function HBar({ value, max }: { value: number; max: number }) {
   );
 }
 
-const plural = (n: number, word: string) => `${formatCount(n)} ${word}${n > 1 ? 's' : ''}`;
+/** « 3 fuites », « 1 breach », « 3 breaches ». */
+const breachCount = (n: number, lang: Lang) =>
+  lang === 'en' ? `${formatCount(n, 'en')} breach${n !== 1 ? 'es' : ''}` : `${formatCount(n)} fuite${n > 1 ? 's' : ''}`;
 
 type SortKey = 'date' | 'pwnCount' | 'title';
 
@@ -77,6 +80,7 @@ const SORTERS: Record<SortKey, (a: StatBreach, b: StatBreach) => number> = {
 
 export function Stats() {
   const uid = useId();
+  const { t, lang, link, localize } = useI18n();
   const [filter, setFilter] = useState<StatsFilter>(() =>
     typeof window === 'undefined' ? {} : readFilter(window.location.hash),
   );
@@ -110,7 +114,7 @@ export function Stats() {
       ...typeChart,
       selected ?? {
         key: filter.dataClass,
-        label: dataClassLabel(filter.dataClass),
+        label: dataClassLabel(filter.dataClass, lang),
         count: 0,
         share: 0,
         risky: RISKY_DATA_CLASSES.has(filter.dataClass),
@@ -124,9 +128,9 @@ export function Stats() {
 
   const active = filter.year !== undefined || filter.dataClass !== undefined;
   const scopeText = [
-    plural(stats.count, 'fuite'),
-    filter.year !== undefined && `en ${filter.year}`,
-    filter.dataClass && `avec ${dataClassLabel(filter.dataClass)}`,
+    breachCount(stats.count, lang),
+    filter.year !== undefined && t(`en ${filter.year}`, `in ${filter.year}`),
+    filter.dataClass && t(`avec ${dataClassLabel(filter.dataClass)}`, `with ${dataClassLabel(filter.dataClass, 'en')}`),
   ]
     .filter(Boolean)
     .join(' ');
@@ -144,29 +148,36 @@ export function Stats() {
   return (
     <>
       <PageHead
-        eyebrow="Chiffres"
-        command={{ input: 'shredrgpd chiffres --france', output: `${ALL.length} fuites analysées` }}
-        title="Les fuites de données en France, en chiffres"
+        eyebrow={t('Chiffres', 'Figures')}
+        command={{
+          input: t('shredrgpd chiffres --france', 'shredrgpd figures --france'),
+          output: t(`${ALL.length} fuites analysées`, `${ALL.length} breaches analysed`),
+        }}
+        title={t('Les fuites de données en France, en chiffres', 'Data breaches in France, in figures')}
       >
-        Ce que dit le catalogue public Have I Been Pwned des fuites qui ont touché des entreprises françaises. Filtre
-        par année ou par type de données : tous les chiffres suivent. Mis à jour chaque jour.
+        {t(
+          'Ce que dit le catalogue public Have I Been Pwned des fuites qui ont touché des entreprises françaises. Filtre par année ou par type de données : tous les chiffres suivent. Mis à jour chaque jour.',
+          'What the public Have I Been Pwned catalogue says about the breaches that hit French companies. Filter by year or by type of data: all the figures follow. Updated every day.',
+        )}
       </PageHead>
 
       <div className="container page-body stats-page">
         {empty ? (
           <Notice tone="warn">
             <p>
-              Chiffres indisponibles : le catalogue des fuites n'a pas pu être téléchargé lors de la dernière mise à
-              jour du site. Reviens un peu plus tard.
+              {t(
+                "Chiffres indisponibles : le catalogue des fuites n'a pas pu être téléchargé lors de la dernière mise à jour du site. Reviens un peu plus tard.",
+                'Figures unavailable: the breach catalogue could not be downloaded during the last site update. Come back a little later.',
+              )}
             </p>
           </Notice>
         ) : (
           <>
-            <div className="stats-filters" role="group" aria-label="Filtres">
+            <div className="stats-filters" role="group" aria-label={t('Filtres', 'Filters')}>
               <div className="field">
-                <label htmlFor={`${uid}-annee`}>Année</label>
+                <label htmlFor={`${uid}-annee`}>{t('Année', 'Year')}</label>
                 <select id={`${uid}-annee`} className="select" value={filter.year ?? ''} onChange={onYear}>
-                  <option value="">Toutes</option>
+                  <option value="">{t('Toutes', 'All')}</option>
                   {[...YEARS].reverse().map((y) => (
                     <option key={y} value={y}>
                       {y}
@@ -175,12 +186,12 @@ export function Stats() {
                 </select>
               </div>
               <div className="field">
-                <label htmlFor={`${uid}-donnee`}>Donnée exposée</label>
+                <label htmlFor={`${uid}-donnee`}>{t('Donnée exposée', 'Exposed data')}</label>
                 <select id={`${uid}-donnee`} className="select" value={filter.dataClass ?? ''} onChange={onType}>
-                  <option value="">Toutes</option>
-                  {TYPES.map((t) => (
-                    <option key={t.key} value={t.key}>
-                      {t.label} ({t.count})
+                  <option value="">{t('Toutes', 'All')}</option>
+                  {TYPES.map((type) => (
+                    <option key={type.key} value={type.key}>
+                      {dataClassLabel(type.key, lang)} ({type.count})
                     </option>
                   ))}
                 </select>
@@ -191,7 +202,7 @@ export function Stats() {
               {active && (
                 <button type="button" className="btn btn--ghost btn--sm" onClick={() => setFilter({})}>
                   <Icon name="close" size={16} />
-                  Tout afficher
+                  {t('Tout afficher', 'Show all')}
                 </button>
               )}
             </div>
@@ -199,40 +210,56 @@ export function Stats() {
             {stats.count === 0 ? (
               <div className="stats-empty">
                 <Notice>
-                  <p>Aucune fuite ne correspond à ces filtres. Change d'année ou de type de données.</p>
+                  <p>
+                    {t(
+                      "Aucune fuite ne correspond à ces filtres. Change d'année ou de type de données.",
+                      'No breach matches these filters. Change the year or the type of data.',
+                    )}
+                  </p>
                 </Notice>
               </div>
             ) : (
               <dl className="figures">
                 <div>
                   <dt>
-                    {stats.count > 1 ? "fuites d'entreprises françaises" : "fuite d'entreprise française"}
-                    {filter.year === undefined && YEARS.length > 0 ? ` depuis ${YEARS[0]}` : ''}
+                    {stats.count > 1
+                      ? t("fuites d'entreprises françaises", 'breaches of French companies')
+                      : t("fuite d'entreprise française", 'breach of a French company')}
+                    {filter.year === undefined && YEARS.length > 0
+                      ? t(` depuis ${YEARS[0]}`, ` since ${YEARS[0]}`)
+                      : ''}
                   </dt>
-                  <dd>{formatCount(stats.count)}</dd>
+                  <dd>{formatCount(stats.count, lang)}</dd>
                 </div>
                 <div>
-                  <dt>de plus d'un million de comptes</dt>
-                  <dd>{formatCount(stats.overMillion)}</dd>
+                  <dt>{t("de plus d'un million de comptes", 'of more than a million accounts')}</dt>
+                  <dd>{formatCount(stats.overMillion, lang)}</dd>
                 </div>
                 <div>
-                  <dt>contiennent des données bancaires</dt>
-                  <dd>{formatShare(stats.bank.share)}</dd>
+                  <dt>{t('contiennent des données bancaires', 'contain bank details')}</dt>
+                  <dd>{formatShare(stats.bank.share, lang)}</dd>
                 </div>
                 {stats.medianDelayDays !== null && (
                   <div>
-                    <dt>entre une fuite et son arrivée dans le catalogue (médiane)</dt>
-                    <dd>{formatDelay(stats.medianDelayDays)}</dd>
+                    <dt>
+                      {t(
+                        'entre une fuite et son arrivée dans le catalogue (médiane)',
+                        'between a breach and its arrival in the catalogue (median)',
+                      )}
+                    </dt>
+                    <dd>{formatDelay(stats.medianDelayDays, lang)}</dd>
                   </div>
                 )}
               </dl>
             )}
 
             <section className="stats-block" aria-labelledby="par-annee">
-              <h2 id="par-annee">Fuites par année</h2>
+              <h2 id="par-annee">{t('Fuites par année', 'Breaches per year')}</h2>
               <p className="stats-block__lead">
-                Selon l'année où la fuite a eu lieu, pas celle de sa découverte : les dernières années sont incomplètes.
-                Clique sur une année pour filtrer la page ; au survol, la liste de ses fuites.
+                {t(
+                  "Selon l'année où la fuite a eu lieu, pas celle de sa découverte : les dernières années sont incomplètes. Clique sur une année pour filtrer la page ; au survol, la liste de ses fuites.",
+                  'By the year the breach happened, not the year it was discovered: the last few years are incomplete. Click a year to filter the page; hover to see its breaches.',
+                )}
               </p>
               <ol className="colchart" data-filtered={filter.year !== undefined || undefined}>
                 {yearChart.map((y) => {
@@ -250,7 +277,9 @@ export function Stats() {
                       >
                         <span className="colchart__value">
                           {y.count}
-                          <span className="visually-hidden"> fuite{y.count > 1 ? 's' : ''} en</span>
+                          <span className="visually-hidden">
+                            {t(` fuite${y.count > 1 ? 's' : ''} en`, ` breach${y.count !== 1 ? 'es' : ''} in`)}
+                          </span>
                         </span>
                         <svg className="colchart__bar" aria-hidden="true" focusable="false">
                           {y.count > 0 && (
@@ -273,10 +302,14 @@ export function Stats() {
                       </button>
                       {y.count > 0 && (
                         <span role="tooltip" id={tip} className="colchart__tip">
-                          <strong>{plural(y.count, 'fuite')}</strong> en {y.year}
+                          <strong>{breachCount(y.count, lang)}</strong> {t('en', 'in')} {y.year}
                           <span className="colchart__tip-list">
                             {shown.join(', ')}
-                            {y.titles.length > shown.length && ` et ${y.titles.length - shown.length} autres`}
+                            {y.titles.length > shown.length &&
+                              t(
+                                ` et ${y.titles.length - shown.length} autres`,
+                                ` and ${y.titles.length - shown.length} others`,
+                              )}
                           </span>
                         </span>
                       )}
@@ -287,25 +320,29 @@ export function Stats() {
             </section>
 
             <section className="stats-block" aria-labelledby="donnees">
-              <h2 id="donnees">Les données les plus exposées</h2>
+              <h2 id="donnees">{t('Les données les plus exposées', 'The most exposed data')}</h2>
               <p className="stats-block__lead">
-                Part des fuites{filter.year !== undefined ? ` de ${filter.year}` : ''} qui contiennent chaque type de
-                données. Clique sur un type pour filtrer la page.
+                {t(
+                  `Part des fuites${filter.year !== undefined ? ` de ${filter.year}` : ''} qui contiennent chaque type de données. Clique sur un type pour filtrer la page.`,
+                  `Share of the breaches${filter.year !== undefined ? ` of ${filter.year}` : ''} that contain each type of data. Click a type to filter the page.`,
+                )}
               </p>
               <ul className="barlist barlist--select" data-filtered={filter.dataClass !== undefined || undefined}>
                 {typeChart.map((d) => (
                   <li key={d.key}>
                     <button type="button" aria-pressed={filter.dataClass === d.key} onClick={() => toggleType(d.key)}>
                       <span className="barlist__label">
-                        {d.label}
-                        {d.risky && <span className="barlist__tag">sensible</span>}
+                        {dataClassLabel(d.key, lang)}
+                        {d.risky && <span className="barlist__tag">{t('sensible', 'sensitive')}</span>}
                       </span>
                       <HBar value={d.share} max={maxShare} />
                       <span className="barlist__value">
-                        {formatShare(d.share)}
+                        {formatShare(d.share, lang)}
                         <span className="visually-hidden">
-                          {' '}
-                          des fuites ({d.count} sur {typeStats.count})
+                          {t(
+                            ` des fuites (${d.count} sur ${typeStats.count})`,
+                            ` of the breaches (${d.count} of ${typeStats.count})`,
+                          )}
                         </span>
                       </span>
                     </button>
@@ -313,29 +350,37 @@ export function Stats() {
                 ))}
               </ul>
               <p className="small">
-                {formatShare(typeStats.passwords.share)} de ces fuites contiennent des mots de passe. Tu en as réutilisé
-                un ? <a href={href('/verifier') + '#parcours=mot-de-passe'}>Teste-le sans le confier à personne</a>.
+                {t(
+                  `${formatShare(typeStats.passwords.share)} de ces fuites contiennent des mots de passe. Tu en as réutilisé un ? `,
+                  `${formatShare(typeStats.passwords.share, 'en')} of these breaches contain passwords. Did you reuse one? `,
+                )}
+                <a href={link('/verifier', { parcours: 'mot-de-passe' })}>
+                  {t('Teste-le sans le confier à personne', 'Test it without handing it to anyone')}
+                </a>
+                .
               </p>
             </section>
 
             {stats.biggest.length > 0 && (
               <section className="stats-block" aria-labelledby="plus-grosses">
-                <h2 id="plus-grosses">Les plus grosses fuites</h2>
+                <h2 id="plus-grosses">{t('Les plus grosses fuites', 'The biggest breaches')}</h2>
                 <p className="stats-block__lead">
-                  Nombre de comptes exposés{active ? `, pour ${scopeText}` : ''}. Chaque fuite a sa page : ce qui a
-                  fuité et quoi faire.
+                  {t(
+                    `Nombre de comptes exposés${active ? `, pour ${scopeText}` : ''}. Chaque fuite a sa page : ce qui a fuité et quoi faire.`,
+                    `Number of accounts exposed${active ? `, for ${scopeText}` : ''}. Each breach has its own page: what leaked and what to do.`,
+                  )}
                 </p>
                 <ol className="barlist">
                   {stats.biggest.map((b) => (
                     <li key={b.path}>
                       <span className="barlist__label">
-                        <a href={b.path}>{b.title}</a>
-                        <span className="barlist__meta">{formatMonthFr(b.date)}</span>
+                        <a href={localize(b.path)}>{b.title}</a>
+                        <span className="barlist__meta">{formatMonth(b.date, lang)}</span>
                       </span>
                       <HBar value={b.pwnCount} max={maxAccounts} />
                       <span className="barlist__value">
-                        {formatBigCount(b.pwnCount)}
-                        <span className="visually-hidden"> comptes</span>
+                        {formatBigCount(b.pwnCount, lang)}
+                        <span className="visually-hidden">{t(' comptes', ' accounts')}</span>
                       </span>
                     </li>
                   ))}
@@ -345,16 +390,23 @@ export function Stats() {
 
             {rows.length > 0 && (
               <section className="stats-block" aria-labelledby="toutes">
-                <h2 id="toutes">Toutes les fuites</h2>
-                <p className="stats-block__lead">Clique sur un titre de colonne pour trier.</p>
-                <div className="table-scroll" role="region" aria-label="Tableau des fuites, défilable" tabIndex={0}>
+                <h2 id="toutes">{t('Toutes les fuites', 'All breaches')}</h2>
+                <p className="stats-block__lead">
+                  {t('Clique sur un titre de colonne pour trier.', 'Click a column heading to sort.')}
+                </p>
+                <div
+                  className="table-scroll"
+                  role="region"
+                  aria-label={t('Tableau des fuites, défilable', 'Table of breaches, scrollable')}
+                  tabIndex={0}
+                >
                   <table className="stats-table">
                     <caption className="visually-hidden">{scopeText}</caption>
                     <thead>
                       <tr>
                         <th scope="col" aria-sort={ariaSort('title')}>
                           <button type="button" onClick={() => sortBy('title')}>
-                            Fuite
+                            {t('Fuite', 'Breach')}
                           </button>
                         </th>
                         <th scope="col" aria-sort={ariaSort('date')}>
@@ -364,22 +416,22 @@ export function Stats() {
                         </th>
                         <th scope="col" className="num" aria-sort={ariaSort('pwnCount')}>
                           <button type="button" onClick={() => sortBy('pwnCount')}>
-                            Comptes
+                            {t('Comptes', 'Accounts')}
                           </button>
                         </th>
-                        <th scope="col">Données exposées</th>
+                        <th scope="col">{t('Données exposées', 'Exposed data')}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {rows.map((b) => (
                         <tr key={b.path}>
                           <th scope="row">
-                            <a href={b.path}>{b.title}</a>
+                            <a href={localize(b.path)}>{b.title}</a>
                           </th>
-                          <td>{formatMonthFr(b.date)}</td>
-                          <td className="num">{b.pwnCount > 0 ? formatCount(b.pwnCount) : '—'}</td>
+                          <td>{formatMonth(b.date, lang)}</td>
+                          <td className="num">{b.pwnCount > 0 ? formatCount(b.pwnCount, lang) : '—'}</td>
                           <td className="stats-table__types">
-                            {b.dataClasses.map((dc) => dataClassLabel(dc)).join(', ')}
+                            {b.dataClasses.map((dc) => dataClassLabel(dc, lang)).join(', ')}
                           </td>
                         </tr>
                       ))}
@@ -392,38 +444,70 @@ export function Stats() {
         )}
 
         <section className="stats-block prose" aria-labelledby="lire">
-          <h2 id="lire">Comment lire ces chiffres</h2>
-          <ul>
-            <li>
-              <strong>« Française » est une estimation.</strong> Le catalogue n'indique pas de pays. ShredRGPD retient
-              une fuite si le domaine de l'entreprise est en .fr, si l'entreprise est connue comme française ou si la
-              description cite la France. Certaines fuites manquent sûrement, d'autres sont peut-être en trop.
-            </li>
-            <li>
-              <strong>Seules les fuites connues de Have I Been Pwned.</strong> Le catalogue ne recense que les fuites
-              dont les données ont circulé et y ont été chargées. Ce n'est pas le total des fuites qui ont touché la
-              France.
-            </li>
-            <li>
-              <strong>Des comptes, pas des personnes.</strong> Une même personne peut figurer dans plusieurs fuites, et
-              un compte n'est pas toujours une personne. Additionner les comptes ne donne pas le nombre de Français
-              touchés.
-            </li>
-            <li>
-              Périmètre : les fuites qui ont une entreprise identifiée, hors listes de spam, logiciels malveillants et
-              fuites signalées comme fabriquées.
-            </li>
-          </ul>
+          <h2 id="lire">{t('Comment lire ces chiffres', 'How to read these figures')}</h2>
+          {lang === 'en' ? (
+            <ul>
+              <li>
+                <strong>“French” is an estimate.</strong> The catalogue gives no country. ShredRGPD counts a breach if
+                the company’s domain ends in .fr, if the company is known to be French or if the description mentions
+                France. Some breaches are surely missing, others may be counted wrongly.
+              </li>
+              <li>
+                <strong>Only breaches known to Have I Been Pwned.</strong> The catalogue only lists breaches whose data
+                circulated and were loaded into it. It is not the total number of breaches that hit France.
+              </li>
+              <li>
+                <strong>Accounts, not people.</strong> The same person can appear in several breaches, and an account is
+                not always a person. Adding up accounts does not give the number of people affected in France.
+              </li>
+              <li>
+                Scope: breaches with an identified company, excluding spam lists, malware and breaches flagged as
+                fabricated.
+              </li>
+            </ul>
+          ) : (
+            <ul>
+              <li>
+                <strong>« Française » est une estimation.</strong> Le catalogue n'indique pas de pays. ShredRGPD retient
+                une fuite si le domaine de l'entreprise est en .fr, si l'entreprise est connue comme française ou si la
+                description cite la France. Certaines fuites manquent sûrement, d'autres sont peut-être en trop.
+              </li>
+              <li>
+                <strong>Seules les fuites connues de Have I Been Pwned.</strong> Le catalogue ne recense que les fuites
+                dont les données ont circulé et y ont été chargées. Ce n'est pas le total des fuites qui ont touché la
+                France.
+              </li>
+              <li>
+                <strong>Des comptes, pas des personnes.</strong> Une même personne peut figurer dans plusieurs fuites,
+                et un compte n'est pas toujours une personne. Additionner les comptes ne donne pas le nombre de Français
+                touchés.
+              </li>
+              <li>
+                Périmètre : les fuites qui ont une entreprise identifiée, hors listes de spam, logiciels malveillants et
+                fuites signalées comme fabriquées.
+              </li>
+            </ul>
+          )}
           <p className="small">
-            Source : <ExternalLink href={HIBP_URL}>Have I Been Pwned</ExternalLink>, sous licence{' '}
+            {t('Source : ', 'Source: ')}
+            <ExternalLink href={HIBP_URL}>Have I Been Pwned</ExternalLink>
+            {t(', sous licence ', ', under the ')}
             <ExternalLink href={HIBP_LICENSE_URL}>CC BY 4.0</ExternalLink>
-            {source.fetchedOn && <>, catalogue du {formatLongFr(source.fetchedOn)}</>}. Ce sont des informations
-            publiques sur les fuites, jamais les données fuitées. Les filtres restent dans ton navigateur.
+            {t('', ' licence')}
+            {source.fetchedOn &&
+              t(
+                `, catalogue du ${formatLong(source.fetchedOn, 'fr')}`,
+                `, catalogue of ${formatLong(source.fetchedOn, 'en')}`,
+              )}
+            {t(
+              '. Ce sont des informations publiques sur les fuites, jamais les données fuitées. Les filtres restent dans ton navigateur.',
+              '. This is public information about the breaches, never the breached data. The filters stay in your browser.',
+            )}
           </p>
           <p>
-            <a className="btn btn--primary" href={href('/verifier')}>
+            <a className="btn btn--primary" href={link('/verifier')}>
               <Icon name="search" size={18} />
-              Vérifier mes fuites
+              {t('Vérifier mes fuites', 'Check my breaches')}
             </a>
           </p>
         </section>
