@@ -68,7 +68,7 @@ export const PAGES: PageMeta[] = [
     path: '/a-propos',
     title: 'À propos · ShredRGPD',
     description:
-      'ShredRGPD aide les victimes de fuites de données à exercer leurs droits RGPD, sans compte, sans traceur et sans base de fuites.',
+      'ShredRGPD aide les victimes de fuites de données à exercer leurs droits RGPD, sans compte, sans cookie et sans base de fuites.',
   },
   {
     path: '/mentions-legales',
@@ -129,7 +129,7 @@ export const PAGES_EN: PageMeta[] = [
     path: '/en/about',
     title: 'About · ShredRGPD',
     description:
-      'ShredRGPD helps victims of data breaches exercise their GDPR rights, with no account, no tracker and no breach database.',
+      'ShredRGPD helps victims of data breaches exercise their GDPR rights, with no account, no cookie and no breach database.',
   },
   {
     path: '/en/legal-notice',

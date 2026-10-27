@@ -89,7 +89,7 @@ const STARTS: {
 const FAQ_EN = [
   {
     q: 'Can ShredRGPD see my data?',
-    a: 'No. Everything happens in your browser: there is no application server, no account, no tracker. The page blocks any request to another website, except to Pwned Passwords when you run a password test: only 5 characters of its hash are sent, never the password.',
+    a: 'No. Everything happens in your browser: there is no application server, no account, no cookie. The page blocks any request to another website, except to Pwned Passwords when you run a password test: only 5 characters of its hash are sent, never the password. To know how many people use the site, Vercel, the hosting provider, counts page views without a cookie: nothing you type is sent.',
   },
   {
     q: 'Does ShredRGPD check whether my data leaked?',
@@ -108,7 +108,7 @@ const FAQ_EN = [
 const FAQ = [
   {
     q: 'Est-ce que ShredRGPD voit mes données ?',
-    a: "Non. Tout se passe dans ton navigateur : il n'y a pas de serveur applicatif, pas de compte, pas de traceur. La page bloque toute requête vers un autre site, sauf vers Pwned Passwords quand tu lances un test de mot de passe : seuls 5 caractères de son empreinte partent, jamais le mot de passe.",
+    a: "Non. Tout se passe dans ton navigateur : il n'y a pas de serveur applicatif, pas de compte, pas de cookie. La page bloque toute requête vers un autre site, sauf vers Pwned Passwords quand tu lances un test de mot de passe : seuls 5 caractères de son empreinte partent, jamais le mot de passe. Pour savoir combien de personnes utilisent le site, Vercel, l'hébergeur, compte les pages vues sans cookie : rien de ce que tu saisis ne part.",
   },
   {
     q: 'Est-ce que ShredRGPD vérifie si mes données ont fuité ?',
@@ -156,7 +156,7 @@ export function Home() {
         <div className="container hero__grid">
           <div>
             <span className="pill">
-              <span className="pill__tag">{t('Sans traceur', 'No tracker')}</span>
+              <span className="pill__tag">{t('Sans cookie', 'No cookie')}</span>
               <span className="pill__text">
                 {t('Gratuit, sans compte', 'Free, no account')}
                 <span className="pill__more">{t(', sans publicité', ', no ads')}</span>
@@ -195,7 +195,7 @@ export function Home() {
               </li>
               <li>
                 <Icon name="check" size={14} />
-                {t('0 traceur', '0 tracker')}
+                {t('0 cookie', '0 cookies')}
               </li>
               <li>
                 <Icon name="check" size={14} />
@@ -398,6 +398,8 @@ export function Home() {
                   {': '}
                   {'\n  '}
                   <span className="k">connect-src</span> <span className="v">https://api.pwnedpasswords.com</span>
+                  {'\n    '}
+                  <span className="v">https://shredrgpd.fr/_vercel/insights/</span>
                   {';\n  '}
                   <span className="k">form-action</span> <span className="v">'none'</span>
                   {';\n  '}

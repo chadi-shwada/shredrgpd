@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { startAnalytics } from './analytics';
 import { loadBreachCatalog } from './breachCatalog';
 import { BREACH_PATH_PREFIX } from './lib/breachPages';
 import { BREACH_PREFIX_EN } from './lib/paths';
@@ -25,3 +26,6 @@ void ready.then(() =>
     </StrictMode>,
   ),
 );
+
+// Mesure d'audience sans cookie (src/analytics.ts), en production seulement.
+startAnalytics();

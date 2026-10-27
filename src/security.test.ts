@@ -7,9 +7,12 @@ function headerValue(key: string): string | undefined {
 }
 
 describe('politique de sécurité', () => {
-  it('n’autorise qu’une seule origine réseau : Pwned Passwords (règle n° 1)', () => {
-    expect(CSP_META).toContain('connect-src https://api.pwnedpasswords.com;');
-    expect(CSP_META.match(/https?:\/\/[^\s;]+/g)).toEqual(['https://api.pwnedpasswords.com']);
+  it('n’autorise que Pwned Passwords et le chemin de mesure d’audience du site (règle n° 1)', () => {
+    expect(CSP_META).toContain('connect-src https://api.pwnedpasswords.com https://shredrgpd.fr/_vercel/insights/;');
+    expect(CSP_META.match(/https?:\/\/[^\s;]+/g)).toEqual([
+      'https://api.pwnedpasswords.com',
+      'https://shredrgpd.fr/_vercel/insights/',
+    ]);
   });
 
   it('vercel.json envoie la même CSP que la balise, plus frame-ancestors', () => {

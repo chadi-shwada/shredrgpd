@@ -2,15 +2,16 @@ import { ExternalLink } from '../components/ExternalLink';
 import { PageHead } from '../components/PageHead';
 import { AUTHOR, SOURCE_CODE_URL } from '../config';
 import { KNOWN_SITES } from '../data/sites';
-import { useLang } from '../i18n';
+import { useI18n } from '../i18n';
 
 export function About() {
-  if (useLang() === 'en') return <AboutEn />;
+  const { lang, link } = useI18n();
+  if (lang === 'en') return <AboutEn />;
   return (
     <>
       <PageHead
         eyebrow="À propos"
-        command={{ input: 'shredrgpd --a-propos', output: 'gratuit · sans compte · sans traceur' }}
+        command={{ input: 'shredrgpd --a-propos', output: 'gratuit · sans compte · sans cookie' }}
         title="Un outil pour se défendre, pas pour surveiller"
       >
         ShredRGPD aide les personnes dont les données ont fuité à exercer leurs droits, sans rien leur demander en
@@ -39,7 +40,7 @@ export function About() {
 
           <h2>Vie privée</h2>
           <p>
-            Pas de compte, pas de cookie, pas d'analytics, pas de police chargée depuis un CDN. La page déclare une
+            Pas de compte, pas de cookie, pas de publicité, pas de police chargée depuis un CDN. La page déclare une
             politique de sécurité du contenu : ton navigateur bloque toute requête de la page vers un autre site, avec
             une seule exception, <code>api.pwnedpasswords.com</code>.
           </p>
@@ -61,6 +62,14 @@ export function About() {
           <p>
             Le bouton « Ouvrir dans ma messagerie » passe la lettre à ton logiciel de messagerie : c'est lui qui
             l'envoie, pas ShredRGPD. Les liens vers des sites externes s'ouvrent sans transmettre d'adresse d'origine.
+          </p>
+          <p>
+            Mesure d'audience : pour savoir combien de personnes utilisent le site, Vercel, son hébergeur, compte les
+            pages vues (Vercel Web Analytics). Selon Vercel, c'est sans cookie : un visiteur est reconnu par une
+            empreinte calculée à partir de sa requête, remise à zéro chaque jour, et il n'est pas suivi d'un site à
+            l'autre. Seule l'adresse de la page part, sans ce qui suit le « # », où se trouvent les données d'une lettre
+            pré-remplie ; rien de ce que tu saisis. Le détail et le moyen de t'y opposer sont dans les{' '}
+            <a href={link('/mentions-legales') + '#donnees-personnelles'}>mentions légales</a>.
           </p>
 
           <h2>Sites connus</h2>
@@ -90,11 +99,12 @@ export function About() {
 }
 
 function AboutEn() {
+  const { link } = useI18n();
   return (
     <>
       <PageHead
         eyebrow="About"
-        command={{ input: 'shredrgpd --about', output: 'free · no account · no tracker' }}
+        command={{ input: 'shredrgpd --about', output: 'free · no account · no cookie' }}
         title="A tool to defend yourself, not to watch you"
       >
         ShredRGPD helps people whose data leaked to exercise their rights, without asking anything from them in return.
@@ -122,8 +132,8 @@ function AboutEn() {
 
           <h2>Privacy</h2>
           <p>
-            No account, no cookie, no analytics, no font loaded from a CDN. The page declares a content security policy:
-            your browser blocks any request from the page to another website, with a single exception,{' '}
+            No account, no cookie, no ads, no font loaded from a CDN. The page declares a content security policy: your
+            browser blocks any request from the page to another website, with a single exception,{' '}
             <code>api.pwnedpasswords.com</code>.
           </p>
           <p>
@@ -144,6 +154,14 @@ function AboutEn() {
           <p>
             The “Open in my email app” button hands the letter over to your email software: it sends it, not ShredRGPD.
             Links to external websites open without passing on the address you came from.
+          </p>
+          <p>
+            Audience measurement: to know how many people use the site, Vercel, its hosting provider, counts page views
+            (Vercel Web Analytics). According to Vercel, this uses no cookie: a visitor is recognised by a hash computed
+            from their request, reset every day, and is not followed from one website to another. Only the page address
+            is sent, without what follows the “#”, where the data of a pre-filled letter live; nothing you type. Details
+            and how to opt out are in the <a href={link('/mentions-legales') + '#donnees-personnelles'}>legal notice</a>
+            .
           </p>
 
           <h2>Known websites</h2>

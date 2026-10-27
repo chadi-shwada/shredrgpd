@@ -7,14 +7,14 @@
 **Tes données ont fuité ? Demande leur effacement.**
 
 Un outil gratuit, en français, pour voir ce qui a fuité et écrire à l'entreprise une lettre RGPD en quelques minutes.
-Sans compte, sans traceur : tes données restent dans ton navigateur.
+Sans compte, sans cookie : tes données restent dans ton navigateur.
 
 [**Ouvrir ShredRGPD →**](https://shredrgpd.fr)
 
 [![CI](https://github.com/chadi-shwada/shredrgpd/actions/workflows/ci.yml/badge.svg)](https://github.com/chadi-shwada/shredrgpd/actions/workflows/ci.yml)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-2F4BDC)](LICENSE)
 [![Fait en France](https://img.shields.io/badge/fait%20en-France-2F4BDC)](https://shredrgpd.fr)
-[![Sans traceur](https://img.shields.io/badge/traceurs-0-3ccf8e)](#vie-privée)
+[![Sans cookie](https://img.shields.io/badge/cookies-0-3ccf8e)](#vie-privée)
 
 <img src="docs/images/accueil.webp" alt="Page d'accueil de ShredRGPD : « Demande l'effacement de tes données »" width="900">
 
@@ -123,9 +123,10 @@ Les filtres restent dans l'adresse, pour partager une vue. La page rappelle auss
 
 ShredRGPD est un site statique : il n'a pas de serveur à lui, et donc rien où stocker tes données.
 
-- **Ce que tu saisis reste dans ton navigateur.** Seule exception, le test de mot de passe, si tu le lances : il envoie les 5 premiers caractères de l'empreinte SHA-1 à Pwned Passwords. Comme tout hébergeur, Vercel voit ton adresse IP et les pages demandées. Pas de compte, pas de cookie, pas de mesure d'audience, pas de police ni de script chargés depuis un autre site.
+- **Ce que tu saisis reste dans ton navigateur.** Seule exception, le test de mot de passe, si tu le lances : il envoie les 5 premiers caractères de l'empreinte SHA-1 à Pwned Passwords. Comme tout hébergeur, Vercel voit ton adresse IP et les pages demandées. Pas de compte, pas de cookie, pas de police ni de script chargés depuis un autre site.
+- **Mesure d'audience sans cookie.** Vercel Web Analytics, l'outil de l'hébergeur, compte les pages vues : adresse de la page sans ce qui suit `?` ou `#`, site d'origine, pays, type d'appareil, navigateur. Rien de ce que tu saisis. Rien n'est envoyé si ton navigateur active Global Privacy Control ou Do Not Track.
 - **Ton e-mail ne passe jamais par ShredRGPD.** La recherche se fait sur Have I Been Pwned, que tu ouvres toi-même.
-- **Une seule requête externe, et seulement à ta demande** : le test de mot de passe vers `api.pwnedpasswords.com`, qui ne reçoit que 5 caractères de l'empreinte. La politique de sécurité du contenu (CSP) bloque toute autre connexion.
+- **Une seule requête externe, et seulement à ta demande** : le test de mot de passe vers `api.pwnedpasswords.com`, qui ne reçoit que 5 caractères de l'empreinte. La politique de sécurité du contenu (CSP) bloque toute autre connexion, hormis la mesure d'audience, sur le domaine du site lui-même (`/_vercel/insights/`).
 - **Aucune base de fuites.** ShredRGPD n'embarque que les métadonnées publiques du catalogue Have I Been Pwned (nom, date, types de données), jamais les données fuitées.
 - Les paramètres d'une lettre pré-remplie passent dans la partie de l'adresse après `#`, que le navigateur n'envoie pas au serveur.
 
@@ -175,7 +176,7 @@ Le site se déploie sur [Vercel](https://vercel.com) depuis la branche `main`. T
 
 Pour la mise à jour quotidienne de la liste des fuites, crée un *Deploy Hook* Vercel sur `main`. Ajoute ensuite son URL dans le secret GitHub `VERCEL_DEPLOY_HOOK`. Sans ce secret, le workflow ne fait rien.
 
-ShredRGPD n'inclut volontairement ni Vercel Analytics ni Speed Insights.
+ShredRGPD utilise Vercel Web Analytics (sans cookie, en production seulement, adresse réduite au chemin), mais pas Speed Insights. Active Web Analytics dans le projet Vercel (onglet Analytics), sinon le script ne se charge pas.
 
 ## Contribuer
 
@@ -184,7 +185,7 @@ Tu as repéré une erreur dans une lettre, un bug, une idée ? [Ouvre une issue]
 Quelques règles du projet :
 - **Ne jamais inventer un contact.** Un contact de DPO ou de responsable de traitement n'entre que s'il vient d'une source officielle, avec sa date de vérification.
 - **Citer l'article.** Toute modification d'une lettre cite l'article du RGPD concerné et met à jour les tests.
-- **Rien n'envoie de données à un tiers.** Pas d'analytics, pas de CDN, pas de requête externe.
+- **Rien n'envoie de données à un tiers.** Pas de CDN, pas de requête externe ; seule la mesure d'audience sans cookie de l'hébergeur, sur le domaine du site.
 - **Interface en français**, avec tutoiement ; les lettres vouvoient.
 
 Le détail est dans [`CLAUDE.md`](CLAUDE.md).

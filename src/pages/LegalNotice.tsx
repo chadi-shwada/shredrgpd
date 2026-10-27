@@ -49,8 +49,9 @@ export function LegalNotice() {
 
           <h2 id="donnees-personnelles">Données personnelles</h2>
           <p>
-            L'application ShredRGPD ne collecte pas les données que tu saisis : pas de compte, pas de cookie, pas de
-            mesure d'audience. Les lettres sont générées dans ton navigateur.
+            L'application ShredRGPD ne collecte pas les données que tu saisis : pas de compte, pas de cookie. Les
+            lettres sont générées dans ton navigateur. Seule une mesure d'audience sans cookie compte les pages vues
+            (voir ci-dessous).
           </p>
           <p>Le stockage local de ton navigateur garde seulement ce que tu demandes, et rien n'en sort :</p>
           <ul>
@@ -73,6 +74,16 @@ export function LegalNotice() {
             date) pour faire fonctionner et sécuriser le service. Les informations de pré-remplissage d'une lettre (site
             concerné, données exposées) restent dans la partie de l'adresse après le « # », que les navigateurs
             n'envoient jamais au serveur.
+          </p>
+          <p>
+            Mesure d'audience : le site utilise Vercel Web Analytics, l'outil de son hébergeur Vercel, pour savoir
+            combien de personnes le consultent et quelles pages. À chaque page vue, ton navigateur envoie à Vercel, sur
+            le domaine du site, l'adresse de la page sans ce qui suit « ? » ou « # », le site d'où tu viens, ainsi que
+            des informations générales que Vercel tire de la requête (pays, type d'appareil, navigateur, système). Selon
+            Vercel, aucun cookie n'est utilisé, l'identifiant de visite est une empreinte calculée à partir de la
+            requête et remise à zéro chaque jour, et tu n'es pas suivi d'un site à l'autre. ShredRGPD ne voit que des
+            chiffres agrégés. Pour ne pas être compté, active « Global Privacy Control » ou « Ne pas me pister » (Do Not
+            Track) dans ton navigateur : le site n'envoie alors rien ; un bloqueur de publicité a souvent le même effet.
           </p>
           <p>
             Le test de mot de passe, si tu le lances, contacte le service Pwned Passwords : il reçoit ton adresse IP et
@@ -152,8 +163,8 @@ function LegalNoticeEn() {
 
           <h2 id="donnees-personnelles">Personal data</h2>
           <p>
-            The ShredRGPD application does not collect the data you type: no account, no cookie, no audience
-            measurement. Letters are generated in your browser.
+            The ShredRGPD application does not collect the data you type: no account, no cookie. Letters are generated
+            in your browser. Only a cookieless audience measurement counts page views (see below).
           </p>
           <p>Your browser’s local storage only keeps what you ask for, and nothing leaves it:</p>
           <ul>
@@ -175,6 +186,16 @@ function LegalNoticeEn() {
             Like any hosting provider, Vercel may keep technical connection logs (IP address, page requested, date) to
             run and secure the service. The information used to pre-fill a letter (website concerned, exposed data)
             stays in the part of the address after the “#”, which browsers never send to the server.
+          </p>
+          <p>
+            Audience measurement: the site uses Vercel Web Analytics, the tool of its hosting provider Vercel, to know
+            how many people visit it and which pages. For each page view, your browser sends Vercel, on the site’s own
+            domain, the page address without what follows “?” or “#”, the website you came from, and general information
+            Vercel derives from the request (country, device type, browser, operating system). According to Vercel, no
+            cookie is used, the visit identifier is a hash computed from the request and reset every day, and you are
+            not followed from one website to another. ShredRGPD only sees aggregated figures. To opt out, turn on
+            “Global Privacy Control” or “Do Not Track” in your browser: the site then sends nothing; an ad blocker often
+            has the same effect.
           </p>
           <p>
             The password test, if you start it, contacts the Pwned Passwords service: it receives your IP address and
