@@ -87,6 +87,7 @@ export function LegalNotice() {
               <ExternalLink href={HIBP_LICENSE_URL}>CC BY 4.0</ExternalLink>.
             </li>
             <li>Polices Inter et JetBrains Mono, sous licence SIL Open Font License 1.1.</li>
+            <li>Drapeaux du choix de langue : flag-icons (Panayiotis Lipiridis), sous licence MIT.</li>
             <li>Textes, logo et code de ShredRGPD : {AUTHOR.name}, © 2026.</li>
             {SOURCE_CODE_URL && (
               <li>
@@ -188,6 +189,7 @@ function LegalNoticeEn() {
               <ExternalLink href={HIBP_LICENSE_URL}>CC BY 4.0</ExternalLink> licence.
             </li>
             <li>Inter and JetBrains Mono fonts, under the SIL Open Font License 1.1.</li>
+            <li>Flags of the language switch: flag-icons (Panayiotis Lipiridis), under the MIT licence.</li>
             <li>ShredRGPD texts, logo and code: {AUTHOR.name}, © 2026.</li>
             {SOURCE_CODE_URL && (
               <li>

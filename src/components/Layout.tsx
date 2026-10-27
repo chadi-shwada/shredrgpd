@@ -18,8 +18,26 @@ const NAV: { path: RoutePath; label: string; en: string }[] = [
 ];
 
 /**
+ * Petit drapeau du lien de langue (décoratif, le code de la langue est écrit à côté).
+ * Fichiers de flag-icons 7.5.0 (licence MIT, public/flags/LICENSE-flag-icons.txt), copiés
+ * dans public/flags/ et servis par le site : aucune requête externe. Image et non emoji :
+ * Windows affiche les emojis de drapeau en lettres.
+ */
+function Flag({ lang }: { lang: 'fr' | 'en' }) {
+  return (
+    <img
+      className="lang-switch__flag"
+      src={`/flags/${lang === 'fr' ? 'fr' : 'gb'}.svg`}
+      alt=""
+      width="16"
+      height="12"
+    />
+  );
+}
+
+/**
  * Lien vers l'autre langue : la même page si elle est traduite, sinon l'accueil de
- * l'autre langue.
+ * l'autre langue. Drapeau et code de la langue d'arrivée.
  */
 function LanguageSwitch({ path }: { path: string }) {
   const { lang } = useI18n();
@@ -27,6 +45,7 @@ function LanguageSwitch({ path }: { path: string }) {
     const target = hasEnglish(path) ? path : '/';
     return (
       <a className="lang-switch" href={target} hrefLang="fr" lang="fr" aria-label="Version française">
+        <Flag lang="fr" />
         FR
       </a>
     );
@@ -34,6 +53,7 @@ function LanguageSwitch({ path }: { path: string }) {
   const target = hasEnglish(path) ? localizePath(path, 'en') : EN_PREFIX;
   return (
     <a className="lang-switch" href={target} hrefLang="en" lang="en" aria-label="English version">
+      <Flag lang="en" />
       EN
     </a>
   );
