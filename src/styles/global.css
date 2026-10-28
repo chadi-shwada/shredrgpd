@@ -370,7 +370,7 @@ code {
 }
 
 .site-header[data-scrolled='true'] .site-header__inner {
-  max-width: min(66rem, calc(100% - 1.5rem));
+  max-width: min(72rem, calc(100% - 1.5rem));
   height: calc(var(--header-h) - 1rem);
   /* Décalage par transform : une marge haute fusionnerait avec l'en-tête et
      la barre resterait collée au bord. */
@@ -480,6 +480,7 @@ code {
 .nav a {
   display: block;
   padding: 0.45rem 0.8rem;
+  white-space: nowrap;
   border-radius: var(--radius-sm);
   color: var(--ink-2);
   font-weight: 500;
