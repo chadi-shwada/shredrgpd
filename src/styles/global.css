@@ -538,22 +538,33 @@ code {
   box-shadow: 0 0 0 1px rgb(255 255 255 / 18%);
 }
 
-/* Icône de l'assistant ShredRGPD (Grok Bot), à côté du lien de langue. */
-.assistant-link {
-  display: inline-grid;
-  place-items: center;
+/* Assistant ShredRGPD (Grok Bot), à côté du lien de langue : nuage, libellé quand la
+   place le permet, bulle explicative au survol et au focus. */
+.assistant {
+  position: relative;
   flex: none;
-  width: 2.25rem;
-  height: 2.25rem;
   margin-left: 0.4rem;
+}
+
+.assistant-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  height: 2.25rem;
+  min-width: 2.25rem;
+  padding: 0 0.4rem;
   border: 1px solid color-mix(in srgb, #3474e0 55%, var(--line-strong));
-  border-radius: 50%;
+  border-radius: 999px;
   background:
     radial-gradient(circle at 50% 35%, rgb(80 140 255 / 22%), transparent 70%),
     #0f1730;
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 10%),
     0 0 16px -4px rgb(52 116 224 / 75%);
+  color: var(--ink);
+  font-size: 0.875rem;
+  font-weight: 650;
+  white-space: nowrap;
   transition:
     transform 0.15s ease,
     box-shadow 0.15s ease;
@@ -561,12 +572,20 @@ code {
 
 .assistant-link:hover {
   transform: translateY(-1px);
-  box-shadow: 0 0 22px -2px rgb(52 116 224 / 90%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 10%),
+    0 0 22px -2px rgb(52 116 224 / 90%);
+  text-decoration: none;
 }
 
 .assistant-link__mascot {
+  flex: none;
   width: 1.5rem;
   height: auto;
+}
+
+.assistant-link__label {
+  padding-right: 0.35rem;
 }
 
 .assistant-link:hover .assistant-link__mascot {
@@ -579,8 +598,130 @@ code {
   }
 }
 
+/* Bulle : sous le bouton, alignée à droite ; le padding haut fait le pont pour que
+   la souris puisse y entrer sans qu'elle disparaisse. */
+.assistant-tip {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 60;
+  display: grid;
+  gap: 0.35rem;
+  width: 18rem;
+  padding: 0.85rem 1rem;
+  margin-top: 0.6rem;
+  border: 1px solid color-mix(in srgb, #3474e0 45%, var(--line-strong));
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+  color: var(--ink-2);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  white-space: normal;
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease,
+    visibility 0.15s;
+}
+
+.assistant-tip::before {
+  content: '';
+  position: absolute;
+  inset: -0.7rem 0 auto;
+  height: 0.7rem;
+}
+
+.assistant-tip strong {
+  color: var(--ink);
+}
+
+.assistant-tip small {
+  color: var(--ink-3);
+  font-size: 0.8rem;
+}
+
+.assistant:hover .assistant-tip,
+.assistant:focus-within .assistant-tip {
+  visibility: visible;
+  opacity: 1;
+  transform: none;
+}
+
+.assistant[data-dismissed='true'] .assistant-tip {
+  visibility: hidden;
+  opacity: 0;
+}
+
+/* Libellé masqué quand la place manque (en-tête complet ou barre flottante). */
+@media (max-width: 1239px) {
+  .assistant-link__label {
+    display: none;
+  }
+
+  .assistant-link {
+    justify-content: center;
+    padding: 0;
+    width: 2.25rem;
+  }
+}
+
+/* Entrée du menu replié : texte affiché, faute de survol sur mobile. */
+.assistant-menu {
+  display: none;
+}
+
+@media (max-width: 1079px) {
+  .assistant-menu {
+    display: flex;
+    gap: 0.85rem;
+    align-items: flex-start;
+    margin-top: 0.5rem;
+    padding: 0.9rem 0.75rem;
+    border: 1px solid color-mix(in srgb, #3474e0 45%, var(--line-strong));
+    border-radius: var(--radius-lg);
+    background: #0f1730;
+    color: var(--ink-2);
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+
+  .assistant-menu:hover {
+    text-decoration: none;
+  }
+
+  .assistant-menu > span {
+    display: grid;
+    gap: 0.2rem;
+  }
+
+  .assistant-menu strong {
+    color: var(--ink);
+  }
+
+  .assistant-menu small {
+    color: var(--ink-3);
+    font-size: 0.8rem;
+  }
+
+  .assistant-menu__mascot {
+    flex: none;
+    width: 2rem;
+    height: auto;
+    margin-top: 0.15rem;
+  }
+
+  /* Pas de bulle sur écran tactile : le menu explique déjà. */
+  .assistant-tip {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .assistant-link,
+  .assistant-tip,
   .assistant-link:hover .assistant-link__mascot {
     transition: none;
     animation: none;
@@ -599,7 +740,7 @@ code {
   }
 
   .lang-switch,
-  .assistant-link {
+  .assistant {
     margin-left: 0;
   }
 }
