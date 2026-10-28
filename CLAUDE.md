@@ -72,7 +72,7 @@ Ajoutée le 27 octobre 2026 à la demande de l'auteur (savoir si le site est vis
 
 ## Assistant sur Grok Bot
 
-Ajouté le 28 octobre 2026 à la demande de l'auteur : encart `AssistantPromo` (`src/components/AssistantPromo.tsx`) sur l'accueil, avant le bandeau final, en français et en anglais. Carte dans le style de la page Grok Bot de l'assistant (bandeau bleu, mascotte nuage redessinée en SVG, bouton pilule blanc), styles `.assistant-card` dans `global.css`. Simple lien sortant (`ASSISTANT_URL` de `config.ts`, `ExternalLink` : nouvel onglet, `noopener noreferrer`) : aucun script, cookie ni requête. Ne pas le dire gratuit ; la mention « nécessite Grok Bot, service de xAI distinct de ce site » reste. Lien non vérifiable depuis l'environnement de dev (x.ai bloqué par le proxy).
+Ajouté le 28 octobre 2026 à la demande de l'auteur : encart `AssistantPromo` (`src/components/AssistantPromo.tsx`) sur l'accueil, avant le bandeau final, en français et en anglais. Carte dans le style de la page Grok Bot de l'assistant (bandeau bleu à trame de points, badge « Assistant IA », mascotte nuage redessinée en SVG qui flotte, bordure en dégradé qui tourne comme la vidéo, bouton pilule blanc ; animations coupées si `prefers-reduced-motion`), styles `.assistant-card` dans `global.css`. Simple lien sortant (`ASSISTANT_URL` de `config.ts`, `ExternalLink` : nouvel onglet, `noopener noreferrer`) : aucun script, cookie ni requête. Ne pas le dire gratuit ; la mention « nécessite Grok Bot, service de xAI distinct de ce site » reste. Lien non vérifiable depuis l'environnement de dev (x.ai bloqué par le proxy).
 
 ## Règles non négociables
 

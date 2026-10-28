@@ -24,29 +24,32 @@ export function AssistantPromo() {
     <section className="section section--tight" aria-labelledby="assistant">
       <div className="container">
         <article className="assistant-card">
-          <div className="assistant-card__banner">
-            <AssistantMascot />
-          </div>
-          <div className="assistant-card__body">
-            <h2 id="assistant">ShredRGPD</h2>
-            <p className="assistant-card__by">{t('Assistant sur Grok Bot', 'Assistant on Grok Bot')}</p>
-            <p className="assistant-card__text">
-              {t(
-                "Envie d'aller plus loin ? L'assistant ShredRGPD retrouve tes vieux comptes dans tes mails, prépare tes demandes de suppression RGPD et suit les réponses. Tu valides chaque envoi.",
-                'Want to go further? The ShredRGPD assistant finds your old accounts in your inbox, drafts your GDPR erasure requests and tracks the replies. You approve every email.',
-              )}
-            </p>
-            <hr />
-            <p className="assistant-card__note">
-              {t(
-                "Nécessite Grok Bot, un service de xAI distinct de ce site : ses propres conditions et sa politique de confidentialité s'appliquent.",
-                'Requires Grok Bot, an xAI service separate from this site: its own terms and privacy policy apply.',
-              )}
-            </p>
-            <ExternalLink href={ASSISTANT_URL} className="assistant-card__cta">
-              {t("Essayer l'assistant (Grok Bot)", 'Try the assistant (Grok Bot)')}
-              <Icon name="external" size={18} />
-            </ExternalLink>
+          <div className="assistant-card__inner">
+            <div className="assistant-card__banner">
+              <span className="assistant-card__badge">{t('Assistant IA', 'AI assistant')}</span>
+              <AssistantMascot />
+            </div>
+            <div className="assistant-card__body">
+              <h2 id="assistant">ShredRGPD</h2>
+              <p className="assistant-card__by">{t('Assistant sur Grok Bot', 'Assistant on Grok Bot')}</p>
+              <p className="assistant-card__text">
+                {t(
+                  "Envie d'aller plus loin ? L'assistant ShredRGPD retrouve tes vieux comptes dans tes mails, prépare tes demandes de suppression RGPD et suit les réponses. Tu valides chaque envoi.",
+                  'Want to go further? The ShredRGPD assistant finds your old accounts in your inbox, drafts your GDPR erasure requests and tracks the replies. You approve every email.',
+                )}
+              </p>
+              <hr />
+              <p className="assistant-card__note">
+                {t(
+                  "Nécessite Grok Bot, un service de xAI distinct de ce site : ses propres conditions et sa politique de confidentialité s'appliquent.",
+                  'Requires Grok Bot, an xAI service separate from this site: its own terms and privacy policy apply.',
+                )}
+              </p>
+              <ExternalLink href={ASSISTANT_URL} className="assistant-card__cta">
+                {t("Essayer l'assistant (Grok Bot)", 'Try the assistant (Grok Bot)')}
+                <Icon name="external" size={18} />
+              </ExternalLink>
+            </div>
           </div>
         </article>
       </div>

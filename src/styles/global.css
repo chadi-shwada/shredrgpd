@@ -1679,42 +1679,94 @@ code {
   color: var(--ink-2);
 }
 
-/* Encart vers l'assistant ShredRGPD (Grok Bot), dans le style de sa page Grok Bot */
+/* Encart vers l'assistant ShredRGPD (Grok Bot), dans le style de sa page Grok Bot.
+   Bordure en dégradé qui tourne : même --frame-angle et frame-spin que la vidéo de l'accueil. */
 
 .assistant-card {
-  max-width: 26rem;
+  position: relative;
+  max-width: 27rem;
   margin-inline: auto;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xl);
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
+  padding: 1px;
+  border-radius: calc(var(--radius-xl) + 1px);
+  background: conic-gradient(
+    from var(--frame-angle),
+    rgb(143 157 255 / 90%),
+    rgb(143 157 255 / 10%) 25%,
+    rgb(52 116 224 / 15%) 55%,
+    rgb(143 157 255 / 70%) 80%,
+    rgb(143 157 255 / 90%)
+  );
+  box-shadow:
+    0 40px 100px -40px rgb(47 75 220 / 75%),
+    0 0 70px -20px rgb(52 116 224 / 40%);
   text-align: center;
+  animation: frame-spin 10s linear infinite;
+}
+
+.assistant-card__inner {
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  background: linear-gradient(180deg, #14161f, #0d0f16);
 }
 
 .assistant-card__banner {
+  position: relative;
   display: grid;
   place-items: center;
-  height: 8.5rem;
+  height: 9.5rem;
   background:
-    radial-gradient(ellipse 60% 70% at 20% 10%, rgb(40 70 130 / 70%), transparent 70%),
-    radial-gradient(ellipse 70% 80% at 30% 100%, rgb(45 90 180 / 70%), transparent 70%),
-    linear-gradient(160deg, #1b2c55, #163063 55%, #24509a);
+    radial-gradient(circle at 50% 55%, rgb(80 140 255 / 45%), transparent 38%),
+    radial-gradient(rgb(255 255 255 / 9%) 1px, transparent 1.2px) 0 0 / 14px 14px,
+    radial-gradient(ellipse 60% 70% at 15% 0%, rgb(40 70 130 / 80%), transparent 70%),
+    radial-gradient(ellipse 70% 80% at 85% 110%, rgb(60 110 210 / 70%), transparent 70%),
+    linear-gradient(160deg, #18264a, #14306a 55%, #2554a6);
+}
+
+.assistant-card__banner::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgb(143 157 255 / 60%), transparent);
+}
+
+.assistant-card__badge {
+  position: absolute;
+  top: 0.8rem;
+  left: 0.8rem;
+  padding: 0.25rem 0.65rem;
+  border: 1px solid rgb(255 255 255 / 22%);
+  border-radius: 999px;
+  background: rgb(5 6 11 / 45%);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  backdrop-filter: blur(6px);
 }
 
 .assistant-card__mascot {
-  width: 5.5rem;
+  width: 5.75rem;
   height: auto;
+  filter: drop-shadow(0 12px 22px rgb(10 30 90 / 70%));
+  animation: mascot-float 5s ease-in-out infinite;
+}
+
+@keyframes mascot-float {
+  50% {
+    transform: translateY(-6px);
+  }
 }
 
 .assistant-card__body {
-  padding: 1.25rem 1.5rem 1.5rem;
+  padding: 1.4rem 1.6rem 1.6rem;
 }
 
 .assistant-card__body h2 {
   margin: 0;
-  font-size: 1.5rem;
-  letter-spacing: -0.02em;
+  font-size: 1.6rem;
+  letter-spacing: -0.03em;
+  color: #fff;
 }
 
 .assistant-card__body p {
@@ -1722,19 +1774,21 @@ code {
 }
 
 .assistant-card__by {
-  margin-top: 0.15rem;
+  margin-top: 0.2rem;
   color: var(--ink-2);
+  font-size: 0.95rem;
 }
 
 .assistant-card__body .assistant-card__text {
-  margin-top: 0.85rem;
-  line-height: 1.55;
+  margin-top: 0.9rem;
+  line-height: 1.6;
 }
 
 .assistant-card__body hr {
-  margin: 1.1rem 0 0.9rem;
+  margin: 1.2rem 0 1rem;
   border: 0;
-  border-top: 1px solid var(--line);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--line) 20%, var(--line) 80%, transparent);
 }
 
 .assistant-card__note {
@@ -1746,18 +1800,41 @@ code {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  margin-top: 1.1rem;
-  padding: 0.75rem 1.4rem;
+  margin-top: 1.2rem;
+  padding: 0.8rem 1.5rem;
   border-radius: 999px;
-  background: #fff;
+  background: linear-gradient(180deg, #fff, #e9ecf5);
   color: #0b0d14;
   font-weight: 600;
   text-decoration: none;
-  transition: background-color 0.15s ease;
+  box-shadow:
+    inset 0 -1px 0 rgb(0 0 0 / 12%),
+    0 10px 30px -10px rgb(143 157 255 / 70%);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .assistant-card__cta:hover {
-  background: #e4e7ee;
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 -1px 0 rgb(0 0 0 / 12%),
+    0 14px 36px -10px rgb(143 157 255 / 90%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant-card,
+  .assistant-card__mascot {
+    animation: none;
+  }
+
+  .assistant-card__cta {
+    transition: none;
+  }
+
+  .assistant-card__cta:hover {
+    transform: none;
+  }
 }
 
 /* ---------- En-tête de page ---------- */
