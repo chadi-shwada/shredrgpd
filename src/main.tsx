@@ -5,7 +5,6 @@ import { startAnalytics } from './analytics';
 import { loadBreachCatalog } from './breachCatalog';
 import { BREACH_PATH_PREFIX } from './lib/breachPages';
 import { BREACH_PREFIX_EN } from './lib/paths';
-import '@fontsource-variable/inter';
 import '@fontsource-variable/jetbrains-mono';
 import '@fontsource-variable/nunito';
 import './styles/global.css';

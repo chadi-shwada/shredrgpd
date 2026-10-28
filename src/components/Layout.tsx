@@ -3,6 +3,7 @@ import { AUTHOR, SOURCE_CODE_URL } from '../config';
 import { useI18n } from '../i18n';
 import { EN_PREFIX, hasEnglish, localizePath } from '../lib/paths';
 import type { RoutePath } from '../router';
+import { AssistantLink } from './AssistantLink';
 import { ExternalLink } from './ExternalLink';
 import { FooterWord } from './FooterWord';
 import { Icon } from './Icon';
@@ -143,6 +144,7 @@ export function Layout({ path, children }: LayoutProps) {
             </ul>
           </nav>
           <LanguageSwitch path={path} />
+          <AssistantLink />
           <a className="btn btn--primary btn--sm header-cta" href={link('/lettre')}>
             {t('Écrire ma lettre', 'Write my letter')}
           </a>

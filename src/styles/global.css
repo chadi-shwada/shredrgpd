@@ -1,6 +1,7 @@
 /* ==========================================================================
    ShredRGPD : tokens de couleur et de typographie, mode sombre inclus.
-   Polices Inter et JetBrains Mono (OFL) servies par le site lui-même : aucun CDN.
+   Polices Nunito et JetBrains Mono (OFL) servies par le site lui-même : aucun CDN.
+   Taille de base 93,75 % (15 px par défaut), relative au réglage du navigateur.
    Le site entier utilise le thème sombre : <html class="theme-dark"> dans index.html.
    Les tokens clairs de :root restent la base si on réintroduit un thème clair.
    ========================================================================== */
@@ -39,7 +40,7 @@
 
   --focus: #2f4bdc;
 
-  --font-sans: 'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Nunito Variable', Nunito, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
   --radius-sm: 8px;
@@ -141,6 +142,7 @@
 }
 
 html {
+  font-size: 93.75%;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   scroll-padding-top: calc(var(--header-h) + 1rem);
@@ -153,7 +155,6 @@ body {
   font-family: var(--font-sans);
   font-size: 1rem;
   line-height: 1.6;
-  font-feature-settings: 'cv11', 'ss03';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
@@ -164,20 +165,20 @@ h2,
 h3 {
   margin: 0 0 0.5em;
   line-height: 1.1;
-  font-weight: 650;
-  letter-spacing: -0.025em;
+  font-weight: 750;
+  letter-spacing: -0.015em;
   text-wrap: balance;
 }
 
 h1 {
   font-size: clamp(2.6rem, 1.6rem + 4.2vw, 4.75rem);
-  letter-spacing: -0.05em;
+  letter-spacing: -0.03em;
   line-height: 1;
 }
 
 h2 {
   font-size: clamp(1.8rem, 1.3rem + 1.8vw, 2.75rem);
-  letter-spacing: -0.04em;
+  letter-spacing: -0.025em;
 }
 
 h3 {
@@ -534,6 +535,83 @@ code {
   border-radius: 2px;
   object-fit: cover;
   box-shadow: 0 0 0 1px rgb(255 255 255 / 18%);
+}
+
+/* Icône de l'assistant ShredRGPD (Grok Bot), à côté du lien de langue. */
+.assistant-link {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-left: 0.4rem;
+  border: 1px solid color-mix(in srgb, #3474e0 55%, var(--line-strong));
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 35%, rgb(80 140 255 / 22%), transparent 70%),
+    #0f1730;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 10%),
+    0 0 16px -4px rgb(52 116 224 / 75%);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.assistant-link:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 22px -2px rgb(52 116 224 / 90%);
+}
+
+.assistant-link__mascot {
+  width: 1.5rem;
+  height: auto;
+}
+
+.assistant-link:hover .assistant-link__mascot {
+  animation: mascot-hop 0.5s ease;
+}
+
+@keyframes mascot-hop {
+  40% {
+    transform: translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant-link,
+  .assistant-link:hover .assistant-link__mascot {
+    transition: none;
+    animation: none;
+  }
+
+  .assistant-link:hover {
+    transform: none;
+  }
+}
+
+/* Petits écrans : espacements resserrés, et sous 375 px le mot « Menu » reste lu mais
+   n'est plus affiché, pour que logo, menu, langue et assistant tiennent sur une ligne. */
+@media (max-width: 419px) {
+  .site-header__inner {
+    gap: 0.6rem;
+  }
+
+  .lang-switch,
+  .assistant-link {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 374px) {
+  .nav-toggle span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 
 /* « FR » après un lien de la version anglaise qui mène à une page en français. */
@@ -1679,169 +1757,6 @@ code {
   color: var(--ink-2);
 }
 
-/* Encart vers l'assistant ShredRGPD (Grok Bot), dans le style de sa page Grok Bot.
-   Bordure en dégradé qui tourne : même --frame-angle et frame-spin que la vidéo de l'accueil. */
-
-.assistant-card {
-  position: relative;
-  max-width: 27rem;
-  margin-inline: auto;
-  padding: 1px;
-  border-radius: calc(var(--radius-xl) + 1px);
-  background: conic-gradient(
-    from var(--frame-angle),
-    rgb(143 157 255 / 90%),
-    rgb(143 157 255 / 10%) 25%,
-    rgb(52 116 224 / 15%) 55%,
-    rgb(143 157 255 / 70%) 80%,
-    rgb(143 157 255 / 90%)
-  );
-  box-shadow:
-    0 40px 100px -40px rgb(47 75 220 / 75%),
-    0 0 70px -20px rgb(52 116 224 / 40%);
-  font-family: 'Nunito Variable', var(--font-sans);
-  font-size: 0.9375rem;
-  text-align: center;
-  animation: frame-spin 10s linear infinite;
-}
-
-.assistant-card__inner {
-  overflow: hidden;
-  border-radius: var(--radius-xl);
-  background: linear-gradient(180deg, #14161f, #0d0f16);
-}
-
-.assistant-card__banner {
-  position: relative;
-  display: grid;
-  place-items: center;
-  height: 9.5rem;
-  background:
-    radial-gradient(circle at 50% 55%, rgb(80 140 255 / 45%), transparent 38%),
-    radial-gradient(rgb(255 255 255 / 9%) 1px, transparent 1.2px) 0 0 / 14px 14px,
-    radial-gradient(ellipse 60% 70% at 15% 0%, rgb(40 70 130 / 80%), transparent 70%),
-    radial-gradient(ellipse 70% 80% at 85% 110%, rgb(60 110 210 / 70%), transparent 70%),
-    linear-gradient(160deg, #18264a, #14306a 55%, #2554a6);
-}
-
-.assistant-card__banner::after {
-  content: '';
-  position: absolute;
-  inset: auto 0 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgb(143 157 255 / 60%), transparent);
-}
-
-.assistant-card__badge {
-  position: absolute;
-  top: 0.8rem;
-  left: 0.8rem;
-  padding: 0.25rem 0.65rem;
-  border: 1px solid rgb(255 255 255 / 22%);
-  border-radius: 999px;
-  background: rgb(5 6 11 / 45%);
-  color: #fff;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  backdrop-filter: blur(6px);
-}
-
-.assistant-card__mascot {
-  width: 5.75rem;
-  height: auto;
-  filter: drop-shadow(0 12px 22px rgb(10 30 90 / 70%));
-  animation: mascot-float 5s ease-in-out infinite;
-}
-
-@keyframes mascot-float {
-  50% {
-    transform: translateY(-6px);
-  }
-}
-
-.assistant-card__body {
-  padding: 1.4rem 1.6rem 1.6rem;
-}
-
-.assistant-card__body h2 {
-  margin: 0;
-  font-family: inherit;
-  font-size: 1.4rem;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  color: #fff;
-}
-
-.assistant-card__body p {
-  margin: 0;
-}
-
-.assistant-card__by {
-  margin-top: 0.2rem;
-  color: var(--ink-2);
-  font-size: 0.875rem;
-}
-
-.assistant-card__body .assistant-card__text {
-  margin-top: 0.9rem;
-  line-height: 1.6;
-}
-
-.assistant-card__body hr {
-  margin: 1.2rem 0 1rem;
-  border: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--line) 20%, var(--line) 80%, transparent);
-}
-
-.assistant-card__note {
-  font-size: 0.75rem;
-  color: var(--ink-3);
-}
-
-.assistant-card__cta {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 1.2rem;
-  padding: 0.8rem 1.5rem;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #fff, #e9ecf5);
-  color: #0b0d14;
-  font-size: 0.9rem;
-  font-weight: 700;
-  text-decoration: none;
-  box-shadow:
-    inset 0 -1px 0 rgb(0 0 0 / 12%),
-    0 10px 30px -10px rgb(143 157 255 / 70%);
-  transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
-}
-
-.assistant-card__cta:hover {
-  transform: translateY(-1px);
-  box-shadow:
-    inset 0 -1px 0 rgb(0 0 0 / 12%),
-    0 14px 36px -10px rgb(143 157 255 / 90%);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .assistant-card,
-  .assistant-card__mascot {
-    animation: none;
-  }
-
-  .assistant-card__cta {
-    transition: none;
-  }
-
-  .assistant-card__cta:hover {
-    transform: none;
-  }
-}
-
 /* ---------- En-tête de page ---------- */
 
 .page-head {
@@ -1851,7 +1766,7 @@ code {
 
 .page-head h1 {
   font-size: clamp(2rem, 1.5rem + 2vw, 3rem);
-  letter-spacing: -0.045em;
+  letter-spacing: -0.03em;
   margin-bottom: 0.75rem;
 }
 
@@ -3219,7 +3134,7 @@ input[type='range'] {
   font-family: var(--font-mono);
   font-size: 1.875rem;
   font-weight: 600;
-  letter-spacing: -0.05em;
+  letter-spacing: -0.03em;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }

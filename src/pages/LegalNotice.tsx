@@ -97,7 +97,10 @@ export function LegalNotice() {
               Liste des fuites : <ExternalLink href={HIBP_URL}>Have I Been Pwned</ExternalLink>, sous licence{' '}
               <ExternalLink href={HIBP_LICENSE_URL}>CC BY 4.0</ExternalLink>.
             </li>
-            <li>Polices Inter, JetBrains Mono et Nunito, sous licence SIL Open Font License 1.1.</li>
+            <li>
+              Polices Nunito et JetBrains Mono (et Inter dans les images de partage), sous licence SIL Open Font License
+              1.1.
+            </li>
             <li>Drapeaux du choix de langue : flag-icons (Panayiotis Lipiridis), sous licence MIT.</li>
             <li>Textes, logo et code de ShredRGPD : {AUTHOR.name}, © 2026.</li>
             {SOURCE_CODE_URL && (
@@ -209,7 +212,9 @@ function LegalNoticeEn() {
               List of breaches: <ExternalLink href={HIBP_URL}>Have I Been Pwned</ExternalLink>, under the{' '}
               <ExternalLink href={HIBP_LICENSE_URL}>CC BY 4.0</ExternalLink> licence.
             </li>
-            <li>Inter, JetBrains Mono and Nunito fonts, under the SIL Open Font License 1.1.</li>
+            <li>
+              Nunito and JetBrains Mono fonts (and Inter in the share images), under the SIL Open Font License 1.1.
+            </li>
             <li>Flags of the language switch: flag-icons (Panayiotis Lipiridis), under the MIT licence.</li>
             <li>ShredRGPD texts, logo and code: {AUTHOR.name}, © 2026.</li>
             {SOURCE_CODE_URL && (
