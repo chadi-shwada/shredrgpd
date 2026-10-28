@@ -70,6 +70,10 @@ Ajoutée le 27 octobre 2026 à la demande de l'auteur (savoir si le site est vis
 - Textes : « sans traceur » / « 0 traceur » remplacés par « sans cookie » / « 0 cookie » (accueil, descriptions, À propos, README), « pas de mesure d'audience » remplacé par la description de la mesure (mentions légales, À propos, FAQ de l'accueil), en français et en anglais. Restent « sans traceur » / « 0 traceur » dans la vidéo (texte incrusté, source non versionnée) et donc dans sa transcription et ses sous-titres, alignés sur l'image.
 - Il faut activer Web Analytics dans le projet Vercel (onglet Analytics) pour que `/_vercel/insights/script.js` existe ; sinon, le script échoue sans gêner le site.
 
+## Assistant sur Grok Bot
+
+Ajouté le 28 octobre 2026 à la demande de l'auteur : encart `AssistantPromo` (`src/components/AssistantPromo.tsx`) sur l'accueil, avant le bandeau final, en français et en anglais. Carte dans le style de la page Grok Bot de l'assistant (bandeau bleu, mascotte nuage redessinée en SVG, bouton pilule blanc), styles `.assistant-card` dans `global.css`. Simple lien sortant (`ASSISTANT_URL` de `config.ts`, `ExternalLink` : nouvel onglet, `noopener noreferrer`) : aucun script, cookie ni requête. Ne pas le dire gratuit ; la mention « nécessite Grok Bot, service de xAI distinct de ce site » reste. Lien non vérifiable depuis l'environnement de dev (x.ai bloqué par le proxy).
+
 ## Règles non négociables
 
 1. Aucune donnée personnelle envoyée à un serveur ou à un tiers. Pas de CDN de polices, pas de requête externe. Deux exceptions, validées : le test de mot de passe par k-anonymat vers `api.pwnedpasswords.com`, lancé par la personne, qui n'envoie que les 5 premiers caractères du SHA-1 ; et la mesure d'audience Vercel Web Analytics (voir « Mesure d'audience »), choisie par l'auteur le 27 octobre 2026 pour savoir si le site est visité. L'e-mail ne passe jamais par ShredRGPD : la recherche se fait sur haveibeenpwned.com. Aucun autre outil d'analytics (pas de Speed Insights, pas de Google Analytics).

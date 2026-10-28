@@ -1679,6 +1679,87 @@ code {
   color: var(--ink-2);
 }
 
+/* Encart vers l'assistant ShredRGPD (Grok Bot), dans le style de sa page Grok Bot */
+
+.assistant-card {
+  max-width: 26rem;
+  margin-inline: auto;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  text-align: center;
+}
+
+.assistant-card__banner {
+  display: grid;
+  place-items: center;
+  height: 8.5rem;
+  background:
+    radial-gradient(ellipse 60% 70% at 20% 10%, rgb(40 70 130 / 70%), transparent 70%),
+    radial-gradient(ellipse 70% 80% at 30% 100%, rgb(45 90 180 / 70%), transparent 70%),
+    linear-gradient(160deg, #1b2c55, #163063 55%, #24509a);
+}
+
+.assistant-card__mascot {
+  width: 5.5rem;
+  height: auto;
+}
+
+.assistant-card__body {
+  padding: 1.25rem 1.5rem 1.5rem;
+}
+
+.assistant-card__body h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  letter-spacing: -0.02em;
+}
+
+.assistant-card__body p {
+  margin: 0;
+}
+
+.assistant-card__by {
+  margin-top: 0.15rem;
+  color: var(--ink-2);
+}
+
+.assistant-card__body .assistant-card__text {
+  margin-top: 0.85rem;
+  line-height: 1.55;
+}
+
+.assistant-card__body hr {
+  margin: 1.1rem 0 0.9rem;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.assistant-card__note {
+  font-size: 0.8rem;
+  color: var(--ink-3);
+}
+
+.assistant-card__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.1rem;
+  padding: 0.75rem 1.4rem;
+  border-radius: 999px;
+  background: #fff;
+  color: #0b0d14;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.assistant-card__cta:hover {
+  background: #e4e7ee;
+}
+
 /* ---------- En-tête de page ---------- */
 
 .page-head {

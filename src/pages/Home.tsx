@@ -1,3 +1,4 @@
+import { AssistantPromo } from '../components/AssistantPromo';
 import { BinaryField } from '../components/BinaryField';
 import { SOURCE_CODE_URL } from '../config';
 import { DataStream } from '../components/DataStream';
@@ -555,6 +556,8 @@ export function Home() {
           </div>
         </div>
       </section>
+
+      <AssistantPromo />
 
       <section className="section" aria-labelledby="commencer">
         <div className="container">
