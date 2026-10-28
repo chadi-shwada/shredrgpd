@@ -1699,6 +1699,8 @@ code {
   box-shadow:
     0 40px 100px -40px rgb(47 75 220 / 75%),
     0 0 70px -20px rgb(52 116 224 / 40%);
+  font-family: 'Nunito Variable', var(--font-sans);
+  font-size: 0.9375rem;
   text-align: center;
   animation: frame-spin 10s linear infinite;
 }
@@ -1739,8 +1741,8 @@ code {
   border-radius: 999px;
   background: rgb(5 6 11 / 45%);
   color: #fff;
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.7rem;
+  font-weight: 700;
   letter-spacing: 0.02em;
   backdrop-filter: blur(6px);
 }
@@ -1764,8 +1766,10 @@ code {
 
 .assistant-card__body h2 {
   margin: 0;
-  font-size: 1.6rem;
-  letter-spacing: -0.03em;
+  font-family: inherit;
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
   color: #fff;
 }
 
@@ -1776,7 +1780,7 @@ code {
 .assistant-card__by {
   margin-top: 0.2rem;
   color: var(--ink-2);
-  font-size: 0.95rem;
+  font-size: 0.875rem;
 }
 
 .assistant-card__body .assistant-card__text {
@@ -1792,7 +1796,7 @@ code {
 }
 
 .assistant-card__note {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--ink-3);
 }
 
@@ -1805,7 +1809,8 @@ code {
   border-radius: 999px;
   background: linear-gradient(180deg, #fff, #e9ecf5);
   color: #0b0d14;
-  font-weight: 600;
+  font-size: 0.9rem;
+  font-weight: 700;
   text-decoration: none;
   box-shadow:
     inset 0 -1px 0 rgb(0 0 0 / 12%),
